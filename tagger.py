@@ -226,8 +226,14 @@ class Model(object):
         self.itemcolumns = self.setColumns(lines[0])
         self.itemdata = {}
         self.tag2item = {}
+        self.initItems(lines[1:])
+        
+        print self.itemcolumns
+        print ['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]
+    
+    def initItems(self, lines):
         idx = 0
-        for line in lines[1:]:
+        for line in lines:
             linestr = line.split(',')
             self.itemdata[idx] = linestr
             
@@ -240,9 +246,7 @@ class Model(object):
                         self.tag2item[aTag] = [linestr]
             
             idx += 1
-        print self.itemcolumns
-        print ['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]
-    
+        
     def setColumns(self, colStr):
         columns = []
         for col in colStr.split(','):
@@ -276,13 +280,13 @@ class Model(object):
             else:
                 newid = max(self.pathes.keys()) + 1
             self.pathes[newid] = (newpath, )
-            ui_utils.log('add %s, pathes count is %d'%(newpath,len(self.pathes.keys())))
+            ui_utils.log('model add %s, pathes count is %d'%(newpath,len(self.pathes.keys())))
             return newid
     def rmvPath(self, oldpath):
         id = self._getIdByPath(oldpath)
         if not -1 == id:
             self.pathes.pop(id)
-            ui_utils.log('rmv %s, pathes count is %d'%(oldpath,len(self.pathes.keys())))
+            ui_utils.log('model rmv %s, pathes count is %d'%(oldpath,len(self.pathes.keys())))
             return True
         else:
             ui_utils.warn('%s not exists'%oldpath)
@@ -290,19 +294,45 @@ class Model(object):
 
 #--------BEGIN Controllor
 class EventHandler(object):
-    def __init__(self, sender, model):
+    def __init__(self, sender, model, modelKeyColIdx=0):
         self.sender = sender
         self.model = model
+        self.modelKeyColIdx = modelKeyColIdx
     def listBeginEdit(self, event):#disable edit: path, tags
+        '''
+        ^ edit grid cell, some column READONLY by 'ro'
+        ^ --------
+        '''
         if READONLY == self.sender.columns[event.Column][3]:
             event.Veto()#Readonly
         else:
-            ui_utils.log('edit from %s' % event.Text)
+            ui_utils.log('evt edit from %s' % event.Text)
     def listEndEdit(self, event):#edit
-        ui_utils.log('edit to %s' % event.Text)
+        ui_utils.log('evt edit to %s' % event.Text)
         event.Allow()
         
+    def listKeyDown(self, event):
+        '''
+        ^ remove item by click DEL key, multi select is supported
+        ^ --------
+        '''
+        if 127 == event.GetKeyCode():#delete
+            list = self.sender
+            selectedRow = list.GetFirstSelected()
+            while not -1 == selectedRow:
+                selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+                self.model.rmvPath(selKey)
+                ui_utils.log('evt rmv %s'%selKey)
+                selectedRow = list.GetNextSelected(selectedRow)
+            list.refreshData(self.model.getPathes())#TODO: refresh item
+            
+            self._savePathes()#TODO: save item
+        
     def htmlTagClick(self, tagStr):#select tag
+        '''
+        ^ filter by click tag
+        ^ --------
+        '''
         ui_utils.log(tagStr)
         
     def onDropFile(self, x, y, filenames):#add path
@@ -316,8 +346,11 @@ class EventHandler(object):
             self.model.addPath(file)
             self.sender.refreshData(self.model.getPathes())
             
-            pathes = [p[0] for p in self.model.getPathes().values()]
-            io.save(pathes, PATH_CONFIG_F_NAME)
+        self._savePathes()
+            
+    def _savePathes(self):
+        pathes = [p[0] for p in self.model.getPathes().values()]
+        io.save(pathes, PATH_CONFIG_F_NAME)
             
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model):
@@ -391,6 +424,7 @@ def testMainWin():
     evtHandler = EventHandler(view3, model)
     view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
+    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.listKeyDown)
     view3.refreshData(model.getPathes())
     FileDropTarget(view3, model)
     
