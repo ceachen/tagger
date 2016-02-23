@@ -315,8 +315,16 @@ class EventHandler(object):
         '''
         ^ remove item by click DEL key, multi select is supported
         ^ --------
+        ^ refresh item for all pathes by click F5 key
+        ^ if +folder-item: add to item
+        ^ if -folder+item: tag item with sys-del
+        ^ pathes list must be focused
+        ^ --------
+        ^ set tags of ITEM by click F2 key, multi select is supported
+        ^ '+' means add, '-' means del, split tags by ';'
+        ^ --------
         '''
-        if 127 == event.GetKeyCode():#delete
+        if wx.WXK_DELETE == event.GetKeyCode():
             list = self.sender
             selectedRow = list.GetFirstSelected()
             while not -1 == selectedRow:
@@ -327,6 +335,14 @@ class EventHandler(object):
             list.refreshData(self.model.getPathes())#TODO: refresh item
             
             self._savePathes()#TODO: save item
+        elif wx.WXK_F5 == event.GetKeyCode():
+            ui_utils.log('refresh pathes')
+        elif wx.WXK_F2 == event.GetKeyCode():
+            ui_utils.log('set tag')
+            dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
+            if dlg.ShowModal() == wx.ID_OK:
+                ui_utils.log(dlg.GetValue())
+            dlg.Destroy()
         
     def htmlTagClick(self, tagStr):#select tag
         '''
