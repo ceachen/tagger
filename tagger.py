@@ -112,9 +112,6 @@ class HtmlView(html.HtmlWindow):
         if isinstance(cell, html.HtmlWordCell):
             sel = html.HtmlSelection()
             self.evtHandler(cell.ConvertToText(sel))
-            #evt.Allow()
-        else:
-            print 'aaa'
         #super(HtmlView, self).OnCellClicked(cell, x, y, evt)
     def refreshData(self, htmlStr):
         self.SetPage(htmlStr)
@@ -448,12 +445,16 @@ class EventHandler(object):
         if READONLY == self.sender.columns[event.Column][3]:
             event.Veto()#Readonly
         else:
+            self.oldval = event.Text
             ui_utils.log('evt edit from %s' % event.Text)
     def listEndEdit(self, event):#edit
-        ui_utils.log('evt edit to %s' % event.Text)
-        event.Allow()
-        
-        self.mainView.log('edit cell done')
+        if not self.oldval == event.Text:
+            ui_utils.log('evt edit to %s' % event.Text)
+            #event.Allow()
+            self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text
+            self.model.saveItem()
+            self.mainView.log('edit cell done')
+            del self.oldval
         
     def pathDel(self, event):
         '''
