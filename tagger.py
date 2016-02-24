@@ -28,6 +28,8 @@ READONLY = 'ro'
 SYS_TAG_NEW = 'sys-new'
 SYS_TAG_DEL = 'sys-del'
 
+TAG_COL_IDX = 3
+
 #--------BEGIN ui utils
 class ui_utils(object):
     _log_inited = False
@@ -259,12 +261,52 @@ class Model(object):
         self.tagFooterStr = ss[2]
         
         #content inited by items
+        self.buildTagsHtmlStr()
+    def buildTagsHtmlStr(self):
         tags = []
         for aTag in self.tag2item.keys():
-            tags.append(self.tagTemplate%('%s:%d'%(aTag, len(self.tag2item[aTag]))))
+            tags.append(self.tagTemplate%('%s:%d'%(aTag, self.tag2item[aTag])))
         tagStr = '\n'.join(tags)
         
-        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr)            
+        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr)
+    def addTag4Item(self, rowKey, newTag):
+        self.dowithTag4Item(rowKey, newTag, True)
+    def rmvTag4Item(self, rowKey, newTag):
+        self.dowithTag4Item(rowKey, newTag, False)
+    def dowithTag4Item(self, rowKey, newTag, isAdd):
+        itemInAll = self.itemdata[rowKey]
+        itemInDisplay = self.displayItemData[rowKey]
+        itemTagStr = itemInAll[TAG_COL_IDX]
+        itemTags = itemTagStr.split(';')
+        if newTag in itemTags:
+            if isAdd:
+                ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
+            else:
+                itemTags.remove(newTag)
+                if len(itemTags) > 0:
+                    itemInAll[TAG_COL_IDX] = ';'.join(itemTags)
+                else:
+                    itemInAll[TAG_COL_IDX] = ''
+                itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                if not newTag in self.tag2item.keys():
+                    ui_utils.warn('tag %s not exists'%newTag)
+                elif 1 == self.tag2item[newTag]:
+                    self.tag2item.pop(newTag)
+                else:
+                    self.tag2item[newTag] -= 1
+        else:
+            if isAdd:
+                if len(itemInAll[TAG_COL_IDX]) > 0:
+                    itemInAll[TAG_COL_IDX] = '%s;%s' % (itemInAll[TAG_COL_IDX], newTag)
+                else:
+                    itemInAll[TAG_COL_IDX] = newTag
+                itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                if newTag in self.tag2item.keys():
+                    self.tag2item[newTag] += 1
+                else:
+                    self.tag2item[newTag] = 1
+            else:
+                ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
         
     def initItemsAndColumn(self):
         lines = io.load(ITEM_CONFIG_F_NAME)
@@ -281,9 +323,9 @@ class Model(object):
             if len(tagstr) > 1:
                 for aTag in tagstr.split(';'):
                     if aTag in self.tag2item.keys():
-                        self.tag2item[aTag].append(linestr)
+                        self.tag2item[aTag] += 1
                     else:
-                        self.tag2item[aTag] = [linestr]
+                        self.tag2item[aTag] = 1
             
             idx += 1
             
@@ -367,11 +409,18 @@ class Model(object):
             self.displayItemData[newid] = ('',file,'',SYS_TAG_NEW,'')
             
             if SYS_TAG_NEW in self.tag2item.keys():
-                self.tag2item[SYS_TAG_NEW].append(file)
+                self.tag2item[SYS_TAG_NEW] += 1
             else:
                 self.tag2item[SYS_TAG_NEW] = 1
             ui_utils.log('Item %s added'%file)
-
+    def rmvItem(self, listKey):
+        itemTags = self.itemdata[listKey][TAG_COL_IDX].split(';')
+        for itemTag in itemTags:
+            if not 0 == len(itemTag):
+                self.tag2item[itemTag] -= 1
+        self.itemdata.pop(listKey)
+        self.displayItemData.pop(listKey)
+        
 #--------BEGIN Controllor
 class EventHandler(object):
     def __init__(self, sender, model, mainView, modelKeyColIdx=0):
@@ -394,9 +443,9 @@ class EventHandler(object):
         
         self.mainView.log('edit cell done')
         
-    def listDel(self, event):
+    def pathDel(self, event):
         '''
-        ^ remove item by click DEL key, multi select is supported
+        ^ remove path by click DEL key, multi select is supported
         ^ --------
         '''
         list = self.sender
@@ -408,8 +457,22 @@ class EventHandler(object):
             selectedRow = list.GetNextSelected(selectedRow)
         self.model.refreshAll()
         
-        self.model.saveItem()
         self.model.savePath()
+    def itemDel(self, event):
+        '''
+        ^ remove item by click DEL key, multi select is supported
+        ^ --------
+        '''
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItemData(selectedRow)
+            self.model.rmvItem(selKey)
+            ui_utils.log('evt rmv %d'%selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+        self.model.refreshAll()
+        
+        self.model.saveItem()
     def listRefresh(self, event):
         '''
         ^ refresh item for all pathes by click F5 key
@@ -429,18 +492,39 @@ class EventHandler(object):
         dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
         if dlg.ShowModal() == wx.ID_OK:
             ui_utils.log(dlg.GetValue())
+            
+            for newTag in dlg.GetValue().split(';'):
+                newTag = newTag.strip()
+                self.listSetATag(newTag)
+                
+            self.model.refreshAll()
+            self.model.saveItem()
         dlg.Destroy()
+
+        
+    def listSetATag(self, newTag):
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            rowKey = list.GetItemData(selectedRow)
+            if '+' == newTag[:1]:
+                self.model.addTag4Item(rowKey, newTag[1:])
+            elif '-' == newTag[:1]:
+                self.model.rmvTag4Item(rowKey, newTag[1:])
+                
+            selectedRow = list.GetNextSelected(selectedRow)
+        self.model.buildTagsHtmlStr()
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self.listDel(event)
+            self.pathDel(event)
             self.mainView.log('del path done')
         elif wx.WXK_F5 == event.GetKeyCode():
             self.listRefresh(event)
             self.mainView.log('refresh path done')
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self.listDel(event)
+            self.itemDel(event)
             self.mainView.log('del item done')
         elif wx.WXK_F2 == event.GetKeyCode():
             self.listSetTag(event)
@@ -506,7 +590,7 @@ def makeMainWin():
     model.refreshObj['path'] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, None, mainWin)
+    evtHandler = EventHandler(view4, model, mainWin)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
