@@ -16,6 +16,7 @@ import  wx.html as  html
 from wx.lib.embeddedimage import PyEmbeddedImage
 import sys, os
 import codecs
+import re
 import unittest
 
 #--------BEGIG default config
@@ -94,14 +95,10 @@ class MainWin(wx.App):
         
     def getViewPort(self):
         return self.frame
-    #def setMainView(self, mainView):
-    #    #self.mainView = mainView
-    #    ui_utils.addFullExpandChildComponent(self.getViewPort(), mainView)
         
 class HtmlView(html.HtmlWindow):
     def __init__(self, parent, evtHandler):
         html.HtmlWindow.__init__(self, parent, -1, style=wx.NO_FULL_REPAINT_ON_RESIZE)
-        ui_utils.addFullExpandChildComponent(parent, self)
         self.evtHandler = evtHandler
     def OnCellClicked(self, cell, x, y, evt):
         if isinstance(cell, html.HtmlWordCell):
@@ -110,6 +107,7 @@ class HtmlView(html.HtmlWindow):
         super(HtmlView, self).OnCellClicked(cell, x, y, evt)
     def refreshData(self, htmlStr):
         self.SetPage(htmlStr)
+        ui_utils.addFullExpandChildComponent(self.Parent, self)
         
 class SplitView(object):
     def __init__(self, parent, p1Color='Pink', p2Color='Aquamarine', p3Color='Light Blue', lWidth=200, tHeight=300, minSize=80):
@@ -153,8 +151,6 @@ class ListView(wx.ListCtrl,
         self.columns = columns
         self.initColumns()
         
-        ui_utils.addFullExpandChildComponent(parent, self)
-        
     # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
     def GetListCtrl(self):
         return self
@@ -183,6 +179,16 @@ class ListView(wx.ListCtrl,
             for i in range(1, len(data)):
                 self.SetStringItem(index, i, data[i])
             self.SetItemData(index, key)
+        ui_utils.addFullExpandChildComponent(self.Parent, self)
+        
+#========                   
+                   
+                   
+                   
+                   
+                   
+                   
+                   
                    
 #--------BEGIN Model_Serializable
 class io(object):
@@ -205,35 +211,57 @@ class io(object):
                
 #--------BEGIN Model
 class Model(object):
-    '''
-    {1 : (path1, ), 2 : (path2, ), }
-    '''
     def __init__(self):
-        self.pathes = {}
-        idx = 0
-        for line in io.load(PATH_CONFIG_F_NAME):
-            self.pathes[idx] = (line, )
-            idx += 1
-            
-        self.tags = {}
+        self.pathes = {}#{1:(path1,),}
+        
+        self.itemColumnStr = None
+        self.itemcolumns = []#[[col1,width,align,ro,],]
+        self.itemdata = {}#{1:(col1,col2,col3,),}
+        #all Items to be saved
+        self.displayItemData = {}#displayed in Item List View
+        
+        self.tagHtmlStr = None
+        self.tagHeaderStr = None
+        self.tagFooterStr = None
+        self.tag2item = {}#{tag1:count,}
+        self.tagTemplate = '<tag>[%s]</tag>'
+        self.tagSizeTemplate = '<font size=%s>%s</font>'
+        self.tagColorTemplate = '<font color=%s>%s</font>'
+        self.tagBodyTemplate = '<body>%s</body>'
+
+        self.tagColorDefine = {'sys-%s':'gray', }
+        self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
+        
+        self.initPath()
+        self.initItemsAndColumn()
+        self.initTags()
+        
+        #print self.itemcolumns
+        #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
+    
+    def initTags(self):
         self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
         
-        '''
-        name;width;align;ro, path, create, tag1;tag2;tag3, comment...
-        '''
-        lines = io.load(ITEM_CONFIG_F_NAME)
-        self.itemColumnStr = line[0]
-        self.itemcolumns = self.setColumns(lines[0])
-        self.itemdata = {}
-        self.tag2item = {}
-        self.initItems(lines[1:])
+        ss = re.split(self.tagBodyTemplate%'(.|\n)+', self.tagHtmlStr, flags=re.IGNORECASE)#ignore \n
+        self.tagHeaderStr = ss[0]
+        self.tagFooterStr = ss[2]
         
-        print self.itemcolumns
-        print ['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]
-    
-    def initItems(self, lines):
+        #content inited by items
+        tags = []
+        for aTag in self.tag2item.keys():
+            tags.append(self.tagTemplate%('%s(%d)'%(aTag, len(self.tag2item[aTag]))))
+        tagStr = '\n'.join(tags)
+        
+        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr)            
+        
+    def initItemsAndColumn(self):
+        lines = io.load(ITEM_CONFIG_F_NAME)
+        
+        self.itemColumnStr = lines[0]
+        self.itemcolumns = self.initColumns(lines[0])
+        
         idx = 0
-        for line in lines:
+        for line in lines[1:]:
             linestr = line.split(',')
             self.itemdata[idx] = linestr
             
@@ -246,8 +274,9 @@ class Model(object):
                         self.tag2item[aTag] = [linestr]
             
             idx += 1
-        
-    def setColumns(self, colStr):
+            
+        self.displayItemData = dict(self.itemdata)
+    def initColumns(self, colStr):
         columns = []
         for col in colStr.split(','):
             attrs = col.split(';')
@@ -261,7 +290,12 @@ class Model(object):
             column.append(attrs[3])
             columns.append(column)
         return columns
-        
+    
+    def initPath(self):
+        idx = 0
+        for line in io.load(PATH_CONFIG_F_NAME):
+            self.pathes[idx] = (line, )
+            idx += 1
     def getPathes(self):
         return self.pathes
     def _getIdByPath(self, aPath):
@@ -311,38 +345,52 @@ class EventHandler(object):
         ui_utils.log('evt edit to %s' % event.Text)
         event.Allow()
         
-    def listKeyDown(self, event):
+    def _listDel(self, event):
         '''
         ^ remove item by click DEL key, multi select is supported
         ^ --------
+        '''
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+            self.model.rmvPath(selKey)
+            ui_utils.log('evt rmv %s'%selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+        list.refreshData(self.model.getPathes())#TODO: refresh item
+        
+        self._savePathes()#TODO: save item
+    def _listRefresh(self, event):
+        '''
         ^ refresh item for all pathes by click F5 key
         ^ if +folder-item: add to item
         ^ if -folder+item: tag item with sys-del
         ^ pathes list must be focused
         ^ --------
+        '''
+        ui_utils.log('refresh pathes')
+    def _listSetTag(self, event):
+        '''
         ^ set tags of ITEM by click F2 key, multi select is supported
         ^ '+' means add, '-' means del, split tags by ';'
         ^ --------
         '''
+        ui_utils.log('set tag')
+        dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
+        if dlg.ShowModal() == wx.ID_OK:
+            ui_utils.log(dlg.GetValue())
+        dlg.Destroy()
+    def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            list = self.sender
-            selectedRow = list.GetFirstSelected()
-            while not -1 == selectedRow:
-                selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-                self.model.rmvPath(selKey)
-                ui_utils.log('evt rmv %s'%selKey)
-                selectedRow = list.GetNextSelected(selectedRow)
-            list.refreshData(self.model.getPathes())#TODO: refresh item
-            
-            self._savePathes()#TODO: save item
+            self._listDel(event)
         elif wx.WXK_F5 == event.GetKeyCode():
-            ui_utils.log('refresh pathes')
+            self._listRefresh(event)
+    def itemListKeyDown(self, event):
+        if wx.WXK_DELETE == event.GetKeyCode():
+            self._listDel(event)
         elif wx.WXK_F2 == event.GetKeyCode():
-            ui_utils.log('set tag')
-            dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
-            if dlg.ShowModal() == wx.ID_OK:
-                ui_utils.log(dlg.GetValue())
-            dlg.Destroy()
+            self._listSetTag(event)
+    
         
     def htmlTagClick(self, tagStr):#select tag
         '''
@@ -377,7 +425,44 @@ class FileDropTarget(wx.FileDropTarget):
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
+def makeMainWin():
+    mainWin = MainWin()
+    model = Model()
+    
+    view1 = SplitView(mainWin.getViewPort())
+    
+    view2 = HtmlView(view1.p1, EventHandler(None, model).htmlTagClick)
+    view2.refreshData(model.tagHtmlStr)
+    
+    view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
+    evtHandler = EventHandler(view3, model)
+    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
+    view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
+    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
+    FileDropTarget(view3, model)
+    view3.refreshData(model.getPathes())
+    
+    view4 = ListView(view1.p3, model.itemcolumns)
+    evtHandler = EventHandler(view4, None)
+    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
+    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
+    view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
+    view4.refreshData(model.displayItemData)
             
+    mainWin.show()          
+
+
+
+
+
+
+
+
+
+
+
+
+          
 #--------BEGIN Test        
 class test_ui(unittest.TestCase):
     def test_log(self):
@@ -420,37 +505,6 @@ class test_model(unittest.TestCase):
         self.assertTrue(len(self.model.getPathes()) == pathesCount - 1)
         
 #unittest.TestProgram().runTests()
-def testMainWin():
-    mainWin = MainWin()
-    model = Model()
-
-    #panel = wx.Panel(mainWin.getViewPort(), -1, style=wx.NO_FULL_REPAINT_ON_RESIZE)
-    #btn = wx.Button(panel, label = 'test', pos = (150, 60), size = (100, 60))
-    #mainWin.setMainView(panel)
-    
-    view1 = SplitView(mainWin.getViewPort())
-    #box = wx.BoxSizer(wx.VERTICAL)
-    #box.Add(view1.mainView, 0, wx.EXPAND)
-    
-    view2 = HtmlView(view1.p1, EventHandler(None, model).htmlTagClick)
-    #view2.refreshData(TAG_CONFIG_F_NAME)
-    view2.refreshData(model.tagHtmlStr)
-    
-    view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
-    evtHandler = EventHandler(view3, model)
-    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
-    view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
-    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.listKeyDown)
-    view3.refreshData(model.getPathes())
-    FileDropTarget(view3, model)
-    
-    view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, None)
-    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
-    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
-    view4.refreshData(model.itemdata)
-            
-    mainWin.show()
 
 if "__main__" == __name__:
-    testMainWin()
+    makeMainWin()

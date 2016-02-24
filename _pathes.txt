@@ -1,2 +1,5 @@
 C:\Users\user\Desktop\mov\open_m.xlsm
 D:\github\tagger\tagger.py
+D:\github\tagger\_pathes.txt
+D:\github\tagger\doc.bat
+D:\github\tagger\start.bat
