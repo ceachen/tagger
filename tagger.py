@@ -332,7 +332,7 @@ class Model(object):
             self.itemdata[idx] = linestr
             
             tagstr = linestr[-2]
-            if len(tagstr) > 1:
+            if len(tagstr) > 0:
                 for aTag in tagstr.split(';'):
                     if aTag in self.tag2item.keys():
                         self.tag2item[aTag] += 1
