@@ -78,8 +78,8 @@ class MainWin(wx.App):
     def OnInit(self):
         frame = wx.Frame(None, -1, "tagger", pos=(50,50), size=(800,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
-        frame.CreateToolBar()
-        frame.CreateStatusBar()
+        #frame.CreateToolBar()
+        self.sb = frame.CreateStatusBar()
         
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
@@ -94,6 +94,9 @@ class MainWin(wx.App):
         evt.Skip()
     def show(self):
         self.MainLoop()
+        
+    def log(self, text):
+        self.sb.PushStatusText(text)
         
     def getViewPort(self):
         return self.frame
@@ -238,8 +241,15 @@ class Model(object):
         self.initItemsAndColumn()
         self.initTags()
         
+        self.refreshObj = {'tag':None,'path':None,'item':None}
+        
         #print self.itemcolumns
         #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
+    
+    def refreshAll(self):
+        self.refreshObj['tag'].refreshData(self.tagHtmlStr)
+        self.refreshObj['path'].refreshData(self.pathes)
+        self.refreshObj['item'].refreshData(self.displayItemData)
     
     def initTags(self):
         self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
@@ -292,14 +302,25 @@ class Model(object):
             column.append(attrs[3])
             columns.append(column)
         return columns
-    
+    def tostrsItem(self):
+        ret = [self.itemColumnStr]
+        for i in self.itemdata.values():
+            ret.append(','.join(i))
+        return ret
+    def saveItem(self):
+        io.save(self.tostrsItem(), ITEM_CONFIG_F_NAME)
+            
     def initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
             self.pathes[idx] = (line.strip(), )
             idx += 1
-    def getPathes(self):
-        return self.pathes
+    def tostrsPath(self):
+        return [p[0] for p in self.pathes.values()]
+    def savePath(self):
+        io.save(self.tostrsPath())
+    #def getPathes(self):
+    #    return self.pathes
     def _getIdByPath(self, aPath):
         for id in self.pathes.keys():
             if aPath == self.pathes[id][0]:
@@ -353,9 +374,10 @@ class Model(object):
 
 #--------BEGIN Controllor
 class EventHandler(object):
-    def __init__(self, sender, model, modelKeyColIdx=0):
+    def __init__(self, sender, model, mainView, modelKeyColIdx=0):
         self.sender = sender
         self.model = model
+        self.mainView = mainView
         self.modelKeyColIdx = modelKeyColIdx
     def listBeginEdit(self, event):#disable edit: path, tags
         '''
@@ -370,6 +392,8 @@ class EventHandler(object):
         ui_utils.log('evt edit to %s' % event.Text)
         event.Allow()
         
+        self.mainView.log('edit cell done')
+        
     def listDel(self, event):
         '''
         ^ remove item by click DEL key, multi select is supported
@@ -382,9 +406,10 @@ class EventHandler(object):
             self.model.rmvPath(selKey)
             ui_utils.log('evt rmv %s'%selKey)
             selectedRow = list.GetNextSelected(selectedRow)
-        list.refreshData(self.model.getPathes())#TODO: refresh item
+        self.model.refreshAll()
         
-        self._savePathes()#TODO: save item
+        self.model.saveItem()
+        self.model.savePath()
     def listRefresh(self, event):
         '''
         ^ refresh item for all pathes by click F5 key
@@ -405,16 +430,21 @@ class EventHandler(object):
         if dlg.ShowModal() == wx.ID_OK:
             ui_utils.log(dlg.GetValue())
         dlg.Destroy()
+        
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.listDel(event)
+            self.mainView.log('del path done')
         elif wx.WXK_F5 == event.GetKeyCode():
             self.listRefresh(event)
+            self.mainView.log('refresh path done')
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.listDel(event)
+            self.mainView.log('del item done')
         elif wx.WXK_F2 == event.GetKeyCode():
             self.listSetTag(event)
+            self.mainView.log('set tag for item done')
     
         
     def htmlTagClick(self, tagStr):#select tag
@@ -422,7 +452,9 @@ class EventHandler(object):
         ^ filter by click tag
         ^ --------
         '''
-        ui_utils.log(tagStr[1:-1])#trim []
+        tag = tagStr[1:-1]
+        ui_utils.log(tag)#trim []
+        self.mainView.log('click tag %s done'%tag)
         
     def onDropFile(self, x, y, filenames):#add path
         '''
@@ -441,21 +473,18 @@ class EventHandler(object):
                 ui_utils.warn('add path [%s] failed'%file)
             
         if added:
-            self.sender.refreshData(self.model.getPathes())
-            #TODO refresh item
-            self._savePathes()
-            #TODO save item
+            self.model.refreshAll()
+            self.model.saveItem()
+            self.model.savePath()
             
-    def _savePathes(self):
-        pathes = [p[0] for p in self.model.getPathes().values()]
-        io.save(pathes, PATH_CONFIG_F_NAME)
+            self.mainView.log('add path done')
             
 class FileDropTarget(wx.FileDropTarget):
-    def __init__(self, window, model):
+    def __init__(self, window, model, mainView):
         wx.FileDropTarget.__init__(self)  
         self.window = window
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(self.window, model).onDropFile
+        self.dropFile = EventHandler(self.window, model, mainView).onDropFile
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
@@ -465,25 +494,29 @@ def makeMainWin():
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model).htmlTagClick)
-    view2.refreshData(model.tagHtmlStr)
+    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin).htmlTagClick)
+    model.refreshObj['tag'] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
-    evtHandler = EventHandler(view3, model)
+    evtHandler = EventHandler(view3, model, mainWin)
     view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
-    FileDropTarget(view3, model)
-    view3.refreshData(model.getPathes())
+    FileDropTarget(view3, model, mainWin)
+    model.refreshObj['path'] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, None)
+    evtHandler = EventHandler(view4, None, mainWin)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
-    view4.refreshData(model.displayItemData)
+    model.refreshObj['item'] = view4#view4.refreshData(model.displayItemData)
             
-    mainWin.show()          
+    model.refreshAll()
+    mainWin.log('show me done')
+
+    mainWin.show()
+    
 
 
 
