@@ -249,7 +249,7 @@ class Model(object):
         #content inited by items
         tags = []
         for aTag in self.tag2item.keys():
-            tags.append(self.tagTemplate%('%s(%d)'%(aTag, len(self.tag2item[aTag]))))
+            tags.append(self.tagTemplate%('%s:%d'%(aTag, len(self.tag2item[aTag]))))
         tagStr = '\n'.join(tags)
         
         self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr)            
@@ -397,7 +397,7 @@ class EventHandler(object):
         ^ filter by click tag
         ^ --------
         '''
-        ui_utils.log(tagStr)
+        ui_utils.log(tagStr[1:-1])#trim []
         
     def onDropFile(self, x, y, filenames):#add path
         '''
