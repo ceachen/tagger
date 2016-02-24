@@ -250,6 +250,7 @@ class Model(object):
         #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
     
     def refreshAll(self):
+        self.buildTagsHtmlStr()
         self.refreshObj['tag'].refreshData(self.tagHtmlStr)
         self.refreshObj['path'].refreshData(self.pathes)
         self.refreshObj['item'].refreshData(self.displayItemData)
@@ -405,7 +406,7 @@ class Model(object):
             if file == f[1]:
                 return True
         return False
-    def addItem(self, file):
+    def addItem(self, file, fn):
         found = self._findItem(file)
         if found:
             ui_utils.warn('Item %s already exists'%file)
@@ -414,7 +415,10 @@ class Model(object):
                 newid = 1
             else:
                 newid = max(self.itemdata.keys()) + 1
-            self.itemdata[newid] = ('',file,'',SYS_TAG_NEW,'')
+                
+            if os.path.isfile(file):
+                fn = os.path.splitext(fn)[0]#only file name, without ext
+            self.itemdata[newid] = (fn,file,'',SYS_TAG_NEW,'')
             self.displayItemData[newid] = self.itemdata[newid]
             
             if SYS_TAG_NEW in self.tag2item.keys():
@@ -428,7 +432,7 @@ class Model(object):
             if not 0 == len(itemTag):
                 self.tag2item[itemTag] -= 1
         self.itemdata.pop(listKey)
-        self.displayItemData.pop(listKey)
+        #self.displayItemData.pop(listKey)
         
 #--------BEGIN Controllor
 class EventHandler(object):
@@ -526,7 +530,7 @@ class EventHandler(object):
                 self.model.rmvTag4Item(rowKey, newTag[1:])
                 
             selectedRow = list.GetNextSelected(selectedRow)
-        self.model.buildTagsHtmlStr()
+        #self.model.buildTagsHtmlStr()
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
@@ -568,7 +572,7 @@ class EventHandler(object):
                 added = self.model.addPath(file)
                 if added:
                     for f in os.listdir(file):
-                        self.model.addItem(os.path.join(file, f))
+                        self.model.addItem(os.path.join(file, f), f)
             else:
                 ui_utils.warn('add path [%s] failed'%file)
             
