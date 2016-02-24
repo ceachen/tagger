@@ -27,6 +27,7 @@ ITEM_CONFIG_F_NAME = '_items.txt'
 READONLY = 'ro'
 SYS_TAG_NEW = 'sys-new'
 SYS_TAG_DEL = 'sys-del'
+ALL_TAG ='ALL'
 
 TAG_COL_IDX = 3
 
@@ -111,7 +112,10 @@ class HtmlView(html.HtmlWindow):
         if isinstance(cell, html.HtmlWordCell):
             sel = html.HtmlSelection()
             self.evtHandler(cell.ConvertToText(sel))
-        super(HtmlView, self).OnCellClicked(cell, x, y, evt)
+            #evt.Allow()
+        else:
+            print 'aaa'
+        #super(HtmlView, self).OnCellClicked(cell, x, y, evt)
     def refreshData(self, htmlStr):
         self.SetPage(htmlStr)
         ui_utils.addFullExpandChildComponent(self.Parent, self)
@@ -234,7 +238,7 @@ class Model(object):
         self.tagTemplate = '<tag>[%s]</tag>'
         self.tagSizeTemplate = '<font size=%s>%s</font>'
         self.tagColorTemplate = '<font color=%s>%s</font>'
-        self.tagBodyTemplate = '<body>%s</body>'
+        self.tagBodyTemplate = '<data>%s</data>'
 
         self.tagColorDefine = {'sys-%s':'gray', }
         self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
@@ -307,7 +311,15 @@ class Model(object):
                     self.tag2item[newTag] = 1
             else:
                 ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
-        
+    def filterItemByTag(self, tag):
+        if ALL_TAG == tag:
+            self.displayItemData = self.itemdata
+        else:
+            self.displayItemData = {}
+            for key, item in self.itemdata.items():
+                itemTags = item[TAG_COL_IDX].split(';')
+                if tag in itemTags:
+                    self.displayItemData[key] = item
     def initItemsAndColumn(self):
         lines = io.load(ITEM_CONFIG_F_NAME)
         
@@ -329,7 +341,7 @@ class Model(object):
             
             idx += 1
             
-        self.displayItemData = dict(self.itemdata)
+        self.displayItemData = self.itemdata
     def initColumns(self, colStr):
         columns = []
         for col in colStr.split(','):
@@ -406,7 +418,7 @@ class Model(object):
             else:
                 newid = max(self.itemdata.keys()) + 1
             self.itemdata[newid] = ('',file,'',SYS_TAG_NEW,'')
-            self.displayItemData[newid] = ('',file,'',SYS_TAG_NEW,'')
+            self.displayItemData[newid] = self.itemdata[newid]
             
             if SYS_TAG_NEW in self.tag2item.keys():
                 self.tag2item[SYS_TAG_NEW] += 1
@@ -538,7 +550,10 @@ class EventHandler(object):
         '''
         tag = tagStr[1:-1]
         ui_utils.log(tag)#trim []
+        self.model.filterItemByTag(tag.split(':')[0])
         self.mainView.log('click tag %s done'%tag)
+        
+        self.model.refreshAll()
         
     def onDropFile(self, x, y, filenames):#add path
         '''
