@@ -25,6 +25,8 @@ TAG_CONFIG_F_NAME = '_tags.htm'
 ITEM_CONFIG_F_NAME = '_items.txt'
 
 READONLY = 'ro'
+SYS_TAG_NEW = 'sys-new'
+SYS_TAG_DEL = 'sys-del'
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -269,7 +271,7 @@ class Model(object):
             if len(tagstr) > 1:
                 for aTag in tagstr.split(';'):
                     if aTag in self.tag2item.keys():
-                        self.tag2item[aTag] += [linestr]
+                        self.tag2item[aTag].append(linestr)
                     else:
                         self.tag2item[aTag] = [linestr]
             
@@ -294,7 +296,7 @@ class Model(object):
     def initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
-            self.pathes[idx] = (line, )
+            self.pathes[idx] = (line.strip(), )
             idx += 1
     def getPathes(self):
         return self.pathes
@@ -307,7 +309,7 @@ class Model(object):
         id = self._getIdByPath(newpath)
         if not -1 == id:
             ui_utils.warn('%s already exists'%newpath)
-            return id
+            return False
         else:
             if {} == self.pathes:
                 newid = 1
@@ -315,7 +317,7 @@ class Model(object):
                 newid = max(self.pathes.keys()) + 1
             self.pathes[newid] = (newpath, )
             ui_utils.log('model add %s, pathes count is %d'%(newpath,len(self.pathes.keys())))
-            return newid
+            return True
     def rmvPath(self, oldpath):
         id = self._getIdByPath(oldpath)
         if not -1 == id:
@@ -325,6 +327,29 @@ class Model(object):
         else:
             ui_utils.warn('%s not exists'%oldpath)
             return False
+            
+    def _findItem(self, file):
+        for f in self.itemdata.values():
+            if file == f[1]:
+                return True
+        return False
+    def addItem(self, file):
+        found = self._findItem(file)
+        if found:
+            ui_utils.warn('Item %s already exists'%file)
+        else:
+            if {} == self.itemdata:
+                newid = 1
+            else:
+                newid = max(self.itemdata.keys()) + 1
+            self.itemdata[newid] = ('',file,'',SYS_TAG_NEW,'')
+            self.displayItemData[newid] = ('',file,'',SYS_TAG_NEW,'')
+            
+            if SYS_TAG_NEW in self.tag2item.keys():
+                self.tag2item[SYS_TAG_NEW].append(file)
+            else:
+                self.tag2item[SYS_TAG_NEW] = 1
+            ui_utils.log('Item %s added'%file)
 
 #--------BEGIN Controllor
 class EventHandler(object):
@@ -345,7 +370,7 @@ class EventHandler(object):
         ui_utils.log('evt edit to %s' % event.Text)
         event.Allow()
         
-    def _listDel(self, event):
+    def listDel(self, event):
         '''
         ^ remove item by click DEL key, multi select is supported
         ^ --------
@@ -360,7 +385,7 @@ class EventHandler(object):
         list.refreshData(self.model.getPathes())#TODO: refresh item
         
         self._savePathes()#TODO: save item
-    def _listRefresh(self, event):
+    def listRefresh(self, event):
         '''
         ^ refresh item for all pathes by click F5 key
         ^ if +folder-item: add to item
@@ -369,7 +394,7 @@ class EventHandler(object):
         ^ --------
         '''
         ui_utils.log('refresh pathes')
-    def _listSetTag(self, event):
+    def listSetTag(self, event):
         '''
         ^ set tags of ITEM by click F2 key, multi select is supported
         ^ '+' means add, '-' means del, split tags by ';'
@@ -382,14 +407,14 @@ class EventHandler(object):
         dlg.Destroy()
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self._listDel(event)
+            self.listDel(event)
         elif wx.WXK_F5 == event.GetKeyCode():
-            self._listRefresh(event)
+            self.listRefresh(event)
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self._listDel(event)
+            self.listDel(event)
         elif wx.WXK_F2 == event.GetKeyCode():
-            self._listSetTag(event)
+            self.listSetTag(event)
     
         
     def htmlTagClick(self, tagStr):#select tag
@@ -405,12 +430,21 @@ class EventHandler(object):
         ^ insert path(es) to tag their sub dirs or files
         ^ --------
         '''
+        added = False
         for file in filenames:
-            #ui_utils.log(file)
-            self.model.addPath(file)
-            self.sender.refreshData(self.model.getPathes())
+            if os.path.isdir(file):
+                added = self.model.addPath(file)
+                if added:
+                    for f in os.listdir(file):
+                        self.model.addItem(os.path.join(file, f))
+            else:
+                ui_utils.warn('add path [%s] failed'%file)
             
-        self._savePathes()
+        if added:
+            self.sender.refreshData(self.model.getPathes())
+            #TODO refresh item
+            self._savePathes()
+            #TODO save item
             
     def _savePathes(self):
         pathes = [p[0] for p in self.model.getPathes().values()]
