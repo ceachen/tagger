@@ -30,6 +30,7 @@ SYS_TAG_DEL = 'sys-del'
 ALL_TAG ='ALL'
 
 TAG_COL_IDX = 3
+PATH_COL_IDX = 1
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -249,6 +250,22 @@ class Model(object):
         #print self.itemcolumns
         #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
     
+    def syncPath(self):
+        pathlist = [p[0] for p in self.pathes.values()]
+        for k, i in self.itemdata.items():
+            if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
+                for p in pathlist:
+                    if not p in i[PATH_COL_IDX]:
+                        self.dowithTag4Item(k, SYS_TAG_DEL, True)
+                        break
+                if not os.path.exists(i[PATH_COL_IDX]):
+                    self.dowithTag4Item(k, SYS_TAG_DEL, True)
+                    
+        for p in pathlist:
+            for f in os.listdir(p):
+                self.addItem(os.path.join(p, f), f)
+
+        
     def refreshAll(self):
         self.buildTagsHtmlStr()
         self.refreshObj['tag'].refreshData(self.tagHtmlStr)
@@ -277,7 +294,7 @@ class Model(object):
         self.dowithTag4Item(rowKey, newTag, False)
     def dowithTag4Item(self, rowKey, newTag, isAdd):
         itemInAll = self.itemdata[rowKey]
-        itemInDisplay = self.displayItemData[rowKey]
+        #itemInDisplay = self.displayItemData[rowKey]
         itemTagStr = itemInAll[TAG_COL_IDX]
         itemTags = itemTagStr.split(';')
         if newTag in itemTags:
@@ -289,7 +306,7 @@ class Model(object):
                     itemInAll[TAG_COL_IDX] = ';'.join(itemTags)
                 else:
                     itemInAll[TAG_COL_IDX] = ''
-                itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
                 if not newTag in self.tag2item.keys():
                     ui_utils.warn('tag %s not exists'%newTag)
                 elif 1 == self.tag2item[newTag]:
@@ -302,7 +319,7 @@ class Model(object):
                     itemInAll[TAG_COL_IDX] = '%s;%s' % (itemInAll[TAG_COL_IDX], newTag)
                 else:
                     itemInAll[TAG_COL_IDX] = newTag
-                itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
                 if newTag in self.tag2item.keys():
                     self.tag2item[newTag] += 1
                 else:
@@ -431,6 +448,8 @@ class Model(object):
         for itemTag in itemTags:
             if not 0 == len(itemTag):
                 self.tag2item[itemTag] -= 1
+            if 0 == self.tag2item[itemTag]:
+                self.tag2item.pop(itemTag)
         self.itemdata.pop(listKey)
         #self.displayItemData.pop(listKey)
         
@@ -498,6 +517,9 @@ class EventHandler(object):
         ^ pathes list must be focused
         ^ --------
         '''
+        self.model.syncPath()
+        self.model.refreshAll()
+        self.model.saveItem()
         ui_utils.log('refresh pathes')
     def listSetTag(self, event):
         '''
