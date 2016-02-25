@@ -475,7 +475,14 @@ class Model(object):
         return added
     def delPathByEvt(self, filenames):
         for file in filenames:
-            self.rmvPath(file)
+            self.rmvPath(file[0])
+    def delItemByEvt(self, filenames):
+        for file in filenames:
+            self.rmvItem(file[1])
+            
+            
+            
+            
             
 #--------BEGIN Controllor
 class EventHandler(object):
@@ -514,22 +521,6 @@ class EventHandler(object):
         ^ [3] remove path by click DEL key, multi select is supported
         ^ --------
         '''
-        '''
-        filenames = []
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            filenames.append(selKey)
-            selectedRow = list.GetNextSelected(selectedRow)
-            
-        self.model.delPathByEvt(filenames)
-        
-        self.model.refreshAll()
-        self.model.savePath()
-        self.model.saveItem()
-        self.winlog('rmv path done')
-        '''
         self._delRow(self.model.delPathByEvt, 'rmv path done')
         
     def pathSync(self, event):
@@ -550,17 +541,8 @@ class EventHandler(object):
         '''
         ^ [5] remove item by click DEL key, multi select is supported
         ^ --------
-        '''
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItemData(selectedRow)
-            self.model.rmvItem(selKey)
-            selectedRow = list.GetNextSelected(selectedRow)
-        self.model.refreshAll()
-        
-        self.model.saveItem()
-        self.winlog('rmv item done')
+        '''        
+        self._delRow(self.model.delItemByEvt, 'rmv item done')
         
     def itemSetTag(self, event):
         '''
@@ -574,7 +556,7 @@ class EventHandler(object):
             
             for newTag in _dlg.GetValue().split(';'):
                 newTag = newTag.strip()
-                self._listSetATag(newTag)
+                self._itemSetOneTag(newTag)
                 
             self.model.refreshAll()
             self.model.saveItem()
@@ -600,7 +582,8 @@ class EventHandler(object):
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
             selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            filenames.append(selKey)
+            selIdx = list.GetItemData(selectedRow)
+            filenames.append((selKey, selIdx))
             selectedRow = list.GetNextSelected(selectedRow)
             
         delImpl(filenames)
@@ -612,7 +595,7 @@ class EventHandler(object):
     
         
 
-    def _listSetATag(self, newTag):
+    def _itemSetOneTag(self, newTag):
         list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
@@ -623,7 +606,6 @@ class EventHandler(object):
                 self.model.rmvTag4Item(rowKey, newTag[1:])
                 
             selectedRow = list.GetNextSelected(selectedRow)
-        #self.model.buildTagsHtmlStr()
         
     def listBeginEdit(self, event):#disable edit: path, tags
         if READONLY == self.sender.columns[event.Column][3]:
@@ -671,7 +653,7 @@ def makeMainWin():
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, model, mainWin.log)
+    evtHandler = EventHandler(view4, model, mainWin.log, PATH_COL_IDX)#define key column
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
