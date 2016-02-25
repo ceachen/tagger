@@ -269,6 +269,8 @@ class Model(object):
         for p in pathlist:
             for f in os.listdir(p):
                 self.addItem(os.path.join(p, f), f)
+                
+        return True
 
         
     def refreshAll(self):
@@ -545,11 +547,12 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self.model.syncPath()
+            modified = self.model.syncPath()
             
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.winlog('refresh path done')
+            if modified:
+                self.model.refreshAll()
+                self.model.saveItem()
+                self.winlog('refresh path done')
         except Exception, e:
             winlog(str(e), True)
 
