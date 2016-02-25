@@ -461,115 +461,6 @@ class EventHandler(object):
         self.model = model
         self.mainView = mainView
         self.modelKeyColIdx = modelKeyColIdx
-    def listBeginEdit(self, event):#disable edit: path, tags
-        '''
-        ^ edit grid cell, some column READONLY by 'ro'
-        ^ --------
-        '''
-        if READONLY == self.sender.columns[event.Column][3]:
-            event.Veto()#Readonly
-        else:
-            self.oldval = event.Text
-            ui_utils.log('evt edit from %s' % event.Text)
-    def listEndEdit(self, event):#edit
-        if not self.oldval == event.Text:
-            ui_utils.log('evt edit to %s' % event.Text)
-            #event.Allow()
-            self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text
-            self.model.saveItem()
-            self.mainView.log('edit cell done')
-            del self.oldval
-        
-    def pathDel(self, event):
-        '''
-        ^ remove path by click DEL key, multi select is supported
-        ^ --------
-        '''
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            self.model.rmvPath(selKey)
-            ui_utils.log('evt rmv %s'%selKey)
-            selectedRow = list.GetNextSelected(selectedRow)
-        self.model.refreshAll()
-        
-        self.model.savePath()
-    def itemDel(self, event):
-        '''
-        ^ remove item by click DEL key, multi select is supported
-        ^ --------
-        '''
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItemData(selectedRow)
-            self.model.rmvItem(selKey)
-            ui_utils.log('evt rmv %d'%selKey)
-            selectedRow = list.GetNextSelected(selectedRow)
-        self.model.refreshAll()
-        
-        self.model.saveItem()
-    def listRefresh(self, event):
-        '''
-        ^ refresh item for all pathes by click F5 key
-        ^ if +folder-item: add to item
-        ^ if -folder+item: tag item with sys-del
-        ^ pathes list must be focused
-        ^ --------
-        '''
-        self.model.syncPath()
-        self.model.refreshAll()
-        self.model.saveItem()
-        ui_utils.log('refresh pathes')
-    def listSetTag(self, event):
-        '''
-        ^ set tags of ITEM by click F2 key, multi select is supported
-        ^ '+' means add, '-' means del, split tags by ';'
-        ^ --------
-        '''
-        ui_utils.log('set tag')
-        dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
-        if dlg.ShowModal() == wx.ID_OK:
-            ui_utils.log(dlg.GetValue())
-            
-            for newTag in dlg.GetValue().split(';'):
-                newTag = newTag.strip()
-                self.listSetATag(newTag)
-                
-            self.model.refreshAll()
-            self.model.saveItem()
-        dlg.Destroy()
-
-        
-    def listSetATag(self, newTag):
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            rowKey = list.GetItemData(selectedRow)
-            if '+' == newTag[:1]:
-                self.model.addTag4Item(rowKey, newTag[1:])
-            elif '-' == newTag[:1]:
-                self.model.rmvTag4Item(rowKey, newTag[1:])
-                
-            selectedRow = list.GetNextSelected(selectedRow)
-        #self.model.buildTagsHtmlStr()
-        
-    def pathListKeyDown(self, event):
-        if wx.WXK_DELETE == event.GetKeyCode():
-            self.pathDel(event)
-            self.mainView.log('del path done')
-        elif wx.WXK_F5 == event.GetKeyCode():
-            self.listRefresh(event)
-            self.mainView.log('refresh path done')
-    def itemListKeyDown(self, event):
-        if wx.WXK_DELETE == event.GetKeyCode():
-            self.itemDel(event)
-            self.mainView.log('del item done')
-        elif wx.WXK_F2 == event.GetKeyCode():
-            self.listSetTag(event)
-            self.mainView.log('set tag for item done')
-    
         
     def htmlTagClick(self, tagStr):#select tag
         '''
@@ -606,6 +497,121 @@ class EventHandler(object):
             
             self.mainView.log('add path done')
             
+    def pathDel(self, event):
+        '''
+        ^ remove path by click DEL key, multi select is supported
+        ^ --------
+        '''
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+            self.model.rmvPath(selKey)
+            ui_utils.log('evt rmv %s'%selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+        self.model.refreshAll()
+        
+        self.model.savePath()
+        
+    def listRefresh(self, event):
+        '''
+        ^ refresh item for all pathes by click F5 key
+        ^ if +folder-item: add to item
+        ^ if -folder+item: tag item with sys-del
+        ^ pathes list must be focused
+        ^ --------
+        '''
+        self.model.syncPath()
+        self.model.refreshAll()
+        self.model.saveItem()
+        ui_utils.log('refresh pathes')
+
+    def itemDel(self, event):
+        '''
+        ^ remove item by click DEL key, multi select is supported
+        ^ --------
+        '''
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItemData(selectedRow)
+            self.model.rmvItem(selKey)
+            ui_utils.log('evt rmv %d'%selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+        self.model.refreshAll()
+        
+        self.model.saveItem()
+        
+    def listSetTag(self, event):
+        '''
+        ^ set tags of ITEM by click F2 key, multi select is supported
+        ^ '+' means add, '-' means del, split tags by ';'
+        ^ --------
+        '''
+        ui_utils.log('set tag')
+        dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
+        if dlg.ShowModal() == wx.ID_OK:
+            ui_utils.log(dlg.GetValue())
+            
+            for newTag in dlg.GetValue().split(';'):
+                newTag = newTag.strip()
+                self.listSetATag(newTag)
+                
+            self.model.refreshAll()
+            self.model.saveItem()
+        dlg.Destroy()
+
+    def listEndEdit(self, event):#edit
+        if not self.oldval == event.Text:
+            ui_utils.log('evt edit to %s' % event.Text)
+            #event.Allow()
+            self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text
+            self.model.saveItem()
+            self.mainView.log('edit cell done')
+            del self.oldval
+        
+
+    def listBeginEdit(self, event):#disable edit: path, tags
+        '''
+        ^ edit grid cell, some column READONLY by 'ro'
+        ^ --------
+        '''
+        if READONLY == self.sender.columns[event.Column][3]:
+            event.Veto()#Readonly
+        else:
+            self.oldval = event.Text
+            ui_utils.log('evt edit from %s' % event.Text)
+        
+    def listSetATag(self, newTag):
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            rowKey = list.GetItemData(selectedRow)
+            if '+' == newTag[:1]:
+                self.model.addTag4Item(rowKey, newTag[1:])
+            elif '-' == newTag[:1]:
+                self.model.rmvTag4Item(rowKey, newTag[1:])
+                
+            selectedRow = list.GetNextSelected(selectedRow)
+        #self.model.buildTagsHtmlStr()
+        
+    def pathListKeyDown(self, event):
+        if wx.WXK_DELETE == event.GetKeyCode():
+            self.pathDel(event)
+            self.mainView.log('del path done')
+        elif wx.WXK_F5 == event.GetKeyCode():
+            self.listRefresh(event)
+            self.mainView.log('refresh path done')
+    def itemListKeyDown(self, event):
+        if wx.WXK_DELETE == event.GetKeyCode():
+            self.itemDel(event)
+            self.mainView.log('del item done')
+        elif wx.WXK_F2 == event.GetKeyCode():
+            self.listSetTag(event)
+            self.mainView.log('set tag for item done')
+    
+        
+        
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, mainView):
         wx.FileDropTarget.__init__(self)  
