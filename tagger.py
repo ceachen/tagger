@@ -1,10 +1,14 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.01
+^ version: 1.1
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
+
+^ bug: RuntimeWarning when delItem--syncPath--sortByTag
+^ req: find by str
+^ req: show item id in list
 ^ --------
 '''
 
@@ -518,6 +522,7 @@ class EventHandler(object):
             self.model.refreshAll()
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
         
     def pathAdd(self, x, y, filenames):#add path
         '''
@@ -535,6 +540,7 @@ class EventHandler(object):
                 self.winlog('add path done')
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
             
     def pathDel(self, event):
         '''
@@ -545,6 +551,7 @@ class EventHandler(object):
             self._delRow(self.model.delPathByEvt, 'rmv path done')
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
         
     def pathSync(self, event):
         '''
@@ -563,6 +570,7 @@ class EventHandler(object):
                 self.winlog('refresh path done')
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
 
     def itemDel(self, event):
         '''
@@ -573,6 +581,7 @@ class EventHandler(object):
             self._delRow(self.model.delItemByEvt, 'rmv item done')
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
         
     def itemSetTag(self, event):
         '''
@@ -596,6 +605,7 @@ class EventHandler(object):
             _dlg.Destroy()
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
         
     def itemSet(self, event):#edit
         '''
@@ -611,6 +621,7 @@ class EventHandler(object):
             del self.oldval
         except Exception, e:
             self.winlog(str(e), True)
+            raise e
         
     def _delRow(self, delImpl, msg):
         fileAttr = []
