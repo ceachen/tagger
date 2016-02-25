@@ -555,7 +555,7 @@ class EventHandler(object):
             
             for newTag in dlg.GetValue().split(';'):
                 newTag = newTag.strip()
-                self.listSetATag(newTag)
+                self._listSetATag(newTag)
                 
             self.model.refreshAll()
             self.model.saveItem()
@@ -577,14 +577,7 @@ class EventHandler(object):
         
         
 
-    def listBeginEdit(self, event):#disable edit: path, tags
-        if READONLY == self.sender.columns[event.Column][3]:
-            event.Veto()#Readonly
-        else:
-            self.oldval = event.Text
-            ui_utils.log('evt edit from %s' % event.Text)
-        
-    def listSetATag(self, newTag):
+    def _listSetATag(self, newTag):
         list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
@@ -596,6 +589,13 @@ class EventHandler(object):
                 
             selectedRow = list.GetNextSelected(selectedRow)
         #self.model.buildTagsHtmlStr()
+        
+    def listBeginEdit(self, event):#disable edit: path, tags
+        if READONLY == self.sender.columns[event.Column][3]:
+            event.Veto()#Readonly
+        else:
+            self.oldval = event.Text
+            ui_utils.log('evt edit from %s' % event.Text)
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
@@ -633,7 +633,7 @@ def makeMainWin():
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
     evtHandler = EventHandler(view3, model, mainWin)
-    #view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
+    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)#must set for readonly
     #view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
     FileDropTarget(view3, model, mainWin)
