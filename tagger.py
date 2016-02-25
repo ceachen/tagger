@@ -1,9 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.0
+^ version: 1.01
 ^ create: 2016-02-21
-^ release: 2016-02-25
+^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
 ^ --------
 '''
@@ -277,7 +277,7 @@ class Model(object):
         self._dowithTag4Item(rowKey, newTag, True)
     def rmvTag4Item(self, rowKey, newTag):#only for tag set
         self._dowithTag4Item(rowKey, newTag, False)
-    def _dowithTag4Item(self, rowKey, newTag, isAdd):#only for tag set
+    def _dowithTag4Item(self, rowKey, newTag, isAdd):#used by tagSet and pathSync
         itemInAll = self.itemdata[rowKey]
         #itemInDisplay = self.displayItemData[rowKey]
         itemTagStr = itemInAll[TAG_COL_IDX]
@@ -404,26 +404,24 @@ class Model(object):
             return max(dict.keys()) + 1
     
     def syncPath(self):
-        pathlist = [p[0] for p in self.pathdata.values()]
+        pathlist = [p[0] for p in self.pathdata.values()]#all pathes
         for k, i in self.itemdata.items():
             if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
-                for p in pathlist:
+                for p in pathlist:#do with items not under path
                     if not p in i[PATH_COL_IDX]:
-                        self.dowithTag4Item(k, SYS_TAG_DEL, True)
+                        self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
                         break
-                if not os.path.exists(i[PATH_COL_IDX]):
-                    self.dowithTag4Item(k, SYS_TAG_DEL, True)
+                if not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
+                    self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
                     
         for p in pathlist:
             for f in os.listdir(p):
                 self._addItem(os.path.join(p, f), f)
                 
         return True
-    def _addItem(self, filepath, filename):
+    def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
         found = self._findItem(filepath)
-        if found:
-            ui_utils.warn('Item %s already exists'%filepath)
-        else:
+        if not found:
             newid = self._newid(self.itemdata)
                 
             if os.path.isfile(filepath):
@@ -433,7 +431,7 @@ class Model(object):
             
             self._incTag(SYS_TAG_NEW)
             ui_utils.log('Item %s added'%filepath)
-    def _findItem(self, file):
+    def _findItem(self, file):#only for _addItem
         for f in self.itemdata.values():
             if file == f[1]:
                 return True
@@ -444,7 +442,7 @@ class Model(object):
             if aPath == self.pathdata[id][0]:
                 return id
         return -1
-    def _addPath(self, newpath):
+    def _addPath(self, newpath):#only add Path, not care items
         id = self._getIdByPath(newpath)
         if not -1 == id:
             ui_utils.warn('%s already exists'%newpath)
@@ -469,7 +467,8 @@ class Model(object):
                 ui_utils.warn('add path [%s] failed'%file)
             
         return added
-    def delPathByEvt(self, filenames):
+        
+    def delPathByEvt(self, filenames):#only rmv Path, not care items
         for file in filenames:
             self._rmvPath(file[0])
     def _rmvPath(self, oldpath):
@@ -477,10 +476,8 @@ class Model(object):
         if not -1 == id:
             self.pathdata.pop(id)
             ui_utils.log('model rmv %s, pathdata count is %d'%(oldpath,len(self.pathdata.keys())))
-            return True
         else:
             ui_utils.warn('%s not exists'%oldpath)
-            return False
 
     def delItemByEvt(self, filenames):
         for file in filenames:
