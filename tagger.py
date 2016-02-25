@@ -456,10 +456,10 @@ class Model(object):
         
 #--------BEGIN Controllor
 class EventHandler(object):
-    def __init__(self, sender, model, mainView, modelKeyColIdx=0):
+    def __init__(self, sender, model, winlog, modelKeyColIdx=0):
         self.sender = sender
         self.model = model
-        self.mainView = mainView
+        self.winlog = winlog
         self.modelKeyColIdx = modelKeyColIdx
         
     def tagClick(self, tagStr):#select tag
@@ -470,7 +470,7 @@ class EventHandler(object):
         tag = tagStr[1:-1]
         ui_utils.log(tag)#trim []
         self.model.filterItemByTag(tag.split(':')[0])
-        self.mainView.log('click tag %s done'%tag)
+        self.winlog('click tag %s done'%tag)
         
         self.model.refreshAll()
         
@@ -495,7 +495,7 @@ class EventHandler(object):
             self.model.saveItem()
             self.model.savePath()
             
-            self.mainView.log('add path done')
+            self.winlog('add path done')
             
     def pathDel(self, event):
         '''
@@ -571,7 +571,7 @@ class EventHandler(object):
             #event.Allow()
             self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text
             self.model.saveItem()
-            self.mainView.log('edit cell done')
+            self.winlog('edit cell done')
             del self.oldval
         
         
@@ -600,25 +600,25 @@ class EventHandler(object):
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.pathDel(event)
-            self.mainView.log('del path done')
+            self.winlog('del path done')
         elif wx.WXK_F5 == event.GetKeyCode():
             self.pathSync(event)
-            self.mainView.log('refresh path done')
+            self.winlog('refresh path done')
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel(event)
-            self.mainView.log('del item done')
+            self.winlog('del item done')
         elif wx.WXK_F2 == event.GetKeyCode():
             self.itemSetTag(event)
-            self.mainView.log('set tag for item done')
+            self.winlog('set tag for item done')
     
         
         
 class FileDropTarget(wx.FileDropTarget):
-    def __init__(self, window, model, mainView):
+    def __init__(self, window, model, winlog):
         wx.FileDropTarget.__init__(self)  
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(None, model, mainView).pathAdd
+        self.dropFile = EventHandler(None, model, winlog).pathAdd
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
@@ -628,19 +628,19 @@ def makeMainWin():
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin).tagClick)
+    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).tagClick)
     model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
-    evtHandler = EventHandler(view3, model, mainWin)
+    evtHandler = EventHandler(view3, model, mainWin.log)
     view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)#must set for readonly
     #view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
-    FileDropTarget(view3, model, mainWin)
+    FileDropTarget(view3, model, mainWin.log)
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, model, mainWin)
+    evtHandler = EventHandler(view4, model, mainWin.log)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
@@ -677,7 +677,6 @@ class test_ui(unittest.TestCase):
         parent = wx.Frame(None, -1)
         child = wx.Panel(parent)
         ui_utils.addFullExpandChildComponent(parent, child)
-        
 class test_io(unittest.TestCase):
     def test_load_pathes(self):
         lines = io.load(PATH_CONFIG_F_NAME)
