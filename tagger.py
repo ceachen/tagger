@@ -462,7 +462,7 @@ class EventHandler(object):
         self.mainView = mainView
         self.modelKeyColIdx = modelKeyColIdx
         
-    def htmlTagClick(self, tagStr):#select tag
+    def tagClick(self, tagStr):#select tag
         '''
         ^ filter by click tag
         ^ --------
@@ -474,7 +474,7 @@ class EventHandler(object):
         
         self.model.refreshAll()
         
-    def onDropFile(self, x, y, filenames):#add path
+    def pathAdd(self, x, y, filenames):#add path
         '''
         ^ drag&drop path to path list
         ^ insert path(es) to tag their sub dirs or files
@@ -513,7 +513,7 @@ class EventHandler(object):
         
         self.model.savePath()
         
-    def listRefresh(self, event):
+    def pathSync(self, event):
         '''
         ^ refresh item for all pathes by click F5 key
         ^ if +folder-item: add to item
@@ -542,7 +542,7 @@ class EventHandler(object):
         
         self.model.saveItem()
         
-    def listSetTag(self, event):
+    def itemSetTag(self, event):
         '''
         ^ set tags of ITEM by click F2 key, multi select is supported
         ^ '+' means add, '-' means del, split tags by ';'
@@ -561,7 +561,11 @@ class EventHandler(object):
             self.model.saveItem()
         dlg.Destroy()
 
-    def listEndEdit(self, event):#edit
+    def itemSet(self, event):#edit
+        '''
+        ^ edit grid cell, some column READONLY by 'ro'
+        ^ --------
+        '''
         if not self.oldval == event.Text:
             ui_utils.log('evt edit to %s' % event.Text)
             #event.Allow()
@@ -570,12 +574,10 @@ class EventHandler(object):
             self.mainView.log('edit cell done')
             del self.oldval
         
+        
+        
 
     def listBeginEdit(self, event):#disable edit: path, tags
-        '''
-        ^ edit grid cell, some column READONLY by 'ro'
-        ^ --------
-        '''
         if READONLY == self.sender.columns[event.Column][3]:
             event.Veto()#Readonly
         else:
@@ -600,14 +602,14 @@ class EventHandler(object):
             self.pathDel(event)
             self.mainView.log('del path done')
         elif wx.WXK_F5 == event.GetKeyCode():
-            self.listRefresh(event)
+            self.pathSync(event)
             self.mainView.log('refresh path done')
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel(event)
             self.mainView.log('del item done')
         elif wx.WXK_F2 == event.GetKeyCode():
-            self.listSetTag(event)
+            self.itemSetTag(event)
             self.mainView.log('set tag for item done')
     
         
@@ -617,7 +619,7 @@ class FileDropTarget(wx.FileDropTarget):
         wx.FileDropTarget.__init__(self)  
         self.window = window
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(self.window, model, mainView).onDropFile
+        self.dropFile = EventHandler(self.window, model, mainView).pathAdd
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
@@ -627,13 +629,13 @@ def makeMainWin():
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin).htmlTagClick)
+    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin).tagClick)
     model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
     evtHandler = EventHandler(view3, model, mainWin)
-    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
-    view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
+    #view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
+    #view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
     FileDropTarget(view3, model, mainWin)
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
@@ -641,7 +643,7 @@ def makeMainWin():
     view4 = ListView(view1.p3, model.itemcolumns)
     evtHandler = EventHandler(view4, model, mainWin)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
-    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
+    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
     model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
             
