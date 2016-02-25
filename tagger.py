@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.1
+^ version: 1.11
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
@@ -291,7 +291,8 @@ class Model(object):
                 ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
             else:
                 if len(itemInAll[TAG_COL_IDX]) > 0:
-                    itemInAll[TAG_COL_IDX] = '%s;%s' % (itemInAll[TAG_COL_IDX], newTag)
+                    itemTags.append(newTag)
+                    itemInAll[TAG_COL_IDX] = ';'.join(sorted(itemTags))
                 else:
                     itemInAll[TAG_COL_IDX] = newTag
                 #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
@@ -303,10 +304,9 @@ class Model(object):
             if newTag in itemTags:
                 itemTags.remove(newTag)
                 if len(itemTags) > 0:
-                    itemInAll[TAG_COL_IDX] = ';'.join(itemTags)
+                    itemInAll[TAG_COL_IDX] = ';'.join(sorted(itemTags))
                 else:
                     itemInAll[TAG_COL_IDX] = ''
-                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
                 if not newTag in self.tagdata.keys():
                     ui_utils.warn('tag %s not exists'%newTag)
                 elif 1 == self.tagdata[newTag]:
