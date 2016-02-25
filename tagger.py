@@ -617,9 +617,8 @@ class EventHandler(object):
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, mainView):
         wx.FileDropTarget.__init__(self)  
-        self.window = window
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(self.window, model, mainView).pathAdd
+        self.dropFile = EventHandler(None, model, mainView).pathAdd
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
