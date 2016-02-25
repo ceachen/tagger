@@ -435,7 +435,7 @@ class Model(object):
                 
             if os.path.isfile(file):
                 fn = os.path.splitext(fn)[0]#only file name, without ext
-            self.itemdata[newid] = (fn,file,'',SYS_TAG_NEW,'')
+            self.itemdata[newid] = [fn,file,'',SYS_TAG_NEW,'']
             self.displayItemData[newid] = self.itemdata[newid]
             
             if SYS_TAG_NEW in self.tag2item.keys():
