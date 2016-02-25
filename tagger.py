@@ -454,6 +454,29 @@ class Model(object):
         self.itemdata.pop(listKey)
         #self.displayItemData.pop(listKey)
         
+        
+        
+        
+        
+    def addPathByEvt(self, filenames):
+        added = False
+        for file in filenames:
+            if os.path.isdir(file):
+                thispathadded = self.addPath(file)
+                if thispathadded:
+                    added = True
+                    for f in os.listdir(file):
+                        self.addItem(os.path.join(file, f), f)
+                else:
+                    ui_utils.warn('add path [%s] failed'%file)
+            else:
+                ui_utils.warn('add path [%s] failed'%file)
+            
+        return added
+    def delPathByEvt(self, filenames):
+        for file in filenames:
+            self.rmvPath(file)
+            
 #--------BEGIN Controllor
 class EventHandler(object):
     def __init__(self, sender, model, winlog, modelKeyColIdx=0):
@@ -478,24 +501,12 @@ class EventHandler(object):
         ^ insert path(es) to tag their sub dirs or files
         ^ --------
         '''
-        added = False
-        for file in filenames:
-            if os.path.isdir(file):
-                thispathadded = self.model.addPath(file)
-                if thispathadded:
-                    added = True
-                    for f in os.listdir(file):
-                        self.model.addItem(os.path.join(file, f), f)
-                else:
-                    ui_utils.warn('add path [%s] failed'%file)
-            else:
-                ui_utils.warn('add path [%s] failed'%file)
+        added = self.model.addPathByEvt(filenames)
             
         if added:
             self.model.refreshAll()
             self.model.saveItem()
             self.model.savePath()
-            
             self.winlog('add path done')
             
     def pathDel(self, event):
@@ -503,16 +514,19 @@ class EventHandler(object):
         ^ [3] remove path by click DEL key, multi select is supported
         ^ --------
         '''
+        filenames = []
         list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
             selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            self.model.rmvPath(selKey)
+            filenames.append(selKey)
             selectedRow = list.GetNextSelected(selectedRow)
+            
+        self.model.delPathByEvt(filenames)
+        
         self.model.refreshAll()
-        
         self.model.savePath()
-        
+        self.model.saveItem()
         self.winlog('rmv path done')
         
     def pathSync(self, event):
@@ -524,6 +538,7 @@ class EventHandler(object):
         ^ --------
         '''
         self.model.syncPath()
+        
         self.model.refreshAll()
         self.model.saveItem()
         self.winlog('refresh path done')
