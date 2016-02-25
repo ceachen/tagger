@@ -91,9 +91,14 @@ class MainWin(wx.App):
     def OnInit(self):
         frame = wx.Frame(None, -1, "tagger", pos=(50,50), size=(800,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
-        #frame.CreateToolBar()
         self.sb = frame.CreateStatusBar()
         self.sb.SetFieldsCount(2)
+        
+        self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
+        search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
+        search.SetDescriptiveText('example: row[?] == "" or "" in row[?]')
+        self.tb.AddControl(search)
+        self.tb.Realize()
         
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
@@ -108,6 +113,11 @@ class MainWin(wx.App):
         evt.Skip()
     def show(self):
         self.MainLoop()
+        
+    def registerSearcher(self, searcher):
+        self._searchImpl = searcher
+    def _search(self, text):
+        self._searchImpl(text)
         
     def log(self, text, onErr=False):
         if not onErr:
@@ -203,6 +213,39 @@ class ListView(wx.ListCtrl,
             self.SetItemData(index, key)
         ui_utils.addFullExpandChildComponent(self.Parent, self)
         
+class TestSearchCtrl(wx.SearchCtrl):
+    maxSearches = 5
+    
+    def __init__(self, parent, id=-1, value="",
+                 pos=wx.DefaultPosition, size=wx.DefaultSize, style=0,
+                 doSearch=None):
+        style |= wx.TE_PROCESS_ENTER
+        wx.SearchCtrl.__init__(self, parent, id, value, pos, size, style)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnTextEntered)
+        self.Bind(wx.EVT_MENU_RANGE, self.OnMenuItem, id=1, id2=self.maxSearches)
+        self.doSearch = doSearch
+        self.searches = []
+
+    def OnTextEntered(self, evt):
+        text = self.GetValue()
+        if self.doSearch(text):
+            self.searches.append(text)
+            if len(self.searches) > self.maxSearches:
+                del self.searches[0]
+            self.SetMenu(self.MakeMenu())            
+        self.SetValue("")
+
+    def OnMenuItem(self, evt):
+        text = self.searches[evt.GetId()-1]
+        self.doSearch(text)
+        
+    def MakeMenu(self):
+        menu = wx.Menu()
+        item = menu.Append(-1, "Recent Searches")
+        item.Enable(False)
+        for idx, txt in enumerate(self.searches):
+            menu.Append(1+idx, txt)
+        return menu        
 #========                   
                    
                    
@@ -510,7 +553,7 @@ class EventHandler(object):
         self.winlog = winlog
         self.modelKeyColIdx = modelKeyColIdx
         
-    def tagClick(self, tagStr):#select tag
+    def tagFilter(self, tagStr):#select tag
         '''
         ^ [1] filter by click tag
         ^ --------
@@ -523,7 +566,16 @@ class EventHandler(object):
         except Exception, e:
             self.winlog(str(e), True)
             raise e
-        
+    def formularFilter(self, text):
+        '''
+        ^ [8] filter by formular
+        ^ --------
+        '''
+        try:
+            ui_utils.log(eval(text))#TODO
+            self.winlog(text)
+        except Exception,e:
+            raise e
     def pathAdd(self, x, y, filenames):#add path
         '''
         ^ [2] drag&drop path to path list
@@ -689,10 +741,11 @@ class FileDropTarget(wx.FileDropTarget):
 def makeMainWin():
     mainWin = MainWin()
     model = Model()
+    mainWin.registerSearcher(EventHandler(None, model, mainWin.log).formularFilter)
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).tagClick)
+    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).tagFilter)
     model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
