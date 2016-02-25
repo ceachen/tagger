@@ -226,37 +226,100 @@ class io(object):
 #--------BEGIN Model
 class Model(object):
     def __init__(self):
-        self.pathes = {}#{1:(path1,),}
-        
-        self.itemColumnStr = None
-        self.itemcolumns = []#[[col1,width,align,ro,],]
-        self.itemdata = {}#{1:(col1,col2,col3,),}
-        #all Items to be saved
-        self.displayItemData = {}#displayed in Item List View
-        
+        self.tagdata = {}#{tag1:count,}
         self.tagHtmlStr = None
         self.tagHeaderStr = None
         self.tagFooterStr = None
-        self.tag2item = {}#{tag1:count,}
         self.tagTemplate = '<tag>[%s]</tag>'
-        self.tagSizeTemplate = '<font size=%s>%s</font>'
-        self.tagColorTemplate = '<font color=%s>%s</font>'
         self.tagBodyTemplate = '<data>%s</data>'
 
-        self.tagColorDefine = {'sys-%s':'gray', }
-        self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
+        self.pathdata = {}#{1:(path1,),}
         
-        self.initPath()
-        self.initItemsAndColumn()
-        self.initTags()
+        self.itemdata = {}#{1:(col1,col2,col3,),}
+        #all Items to be saved
+        self.displayItemData = {}#displayed in Item List View
+        self.itemcolumns = []#[[col1,width,align,ro,],]
+        self.itemColumnStr = None
+        
+        #self.tagSizeTemplate = '<font size=%s>%s</font>'
+        #self.tagColorTemplate = '<font color=%s>%s</font>'
+
+        #self.tagColorDefine = {'sys-%s':'gray', }
+        #self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
+        
+        self._initPath()
+        self._initItemsAndColumn()
+        self._initTagHtml()
         
         self.refreshObj = {}
         
-        #print self.itemcolumns
-        #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
+    def refreshAll(self):
+        self._buildTagsHtmlStr()
+        self.refreshObj[TAG_CONFIG_F_NAME].refreshData(self.tagHtmlStr)
+        self.refreshObj[PATH_CONFIG_F_NAME].refreshData(self.pathdata)
+        self.refreshObj[ITEM_CONFIG_F_NAME].refreshData(self.displayItemData)
+    
+    def _initPath(self):
+        idx = 0
+        for line in io.load(PATH_CONFIG_F_NAME):
+            self.pathdata[idx] = (line.strip(), )
+            idx += 1
+    def _initTagHtml(self):
+        self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
+        
+        ss = re.split(self.tagBodyTemplate%'(.|\n)+', self.tagHtmlStr, flags=re.IGNORECASE)#ignore \n
+        self.tagHeaderStr = ss[0]
+        self.tagFooterStr = ss[2]
+        
+        #content inited by items
+        self._buildTagsHtmlStr()
+    def _buildTagsHtmlStr(self):
+        _tags = []
+        for aTag, aCount in self.tagdata.items():
+            _tags.append(self.tagTemplate%('%s:%d'%(aTag, aCount)))
+        tagStr = '\n'.join(_tags)
+        
+        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
+    def _initItemsAndColumn(self):
+        lines = io.load(ITEM_CONFIG_F_NAME)
+        
+        self.itemColumnStr = lines[0]
+        self._initColumns(lines[0])
+        
+        idx = 0
+        for line in lines[1:]:
+            linestr = line.split(',')
+            self.itemdata[idx] = linestr
+            
+            tagstr = linestr[TAG_COL_IDX]#tag
+            if len(tagstr) > 0:
+                for aTag in tagstr.split(';'):
+                    self._incTag(aTag)
+            idx += 1
+            
+        self.displayItemData = self.itemdata
+    def _initColumns(self, colStr):
+        columns = []
+        for col in colStr.split(','):
+            attrs = col.split(';')
+            column = []
+            column.append(attrs[0])#name
+            column.append(int(attrs[1]))#width
+            if 'left' in attrs[2].lower():
+                column.append(wx.LIST_FORMAT_LEFT)
+            else:
+                column.append(wx.LIST_FORMAT_RIGHT)#align
+            column.append(attrs[3])#ro
+            columns.append(column)
+        self.itemcolumns = columns
+    def _incTag(self, aTag):
+        if aTag in self.tagdata.keys():
+            self.tagdata[aTag] += 1
+        else:
+            self.tagdata[aTag] = 1
     
     def syncPath(self):
-        pathlist = [p[0] for p in self.pathes.values()]
+        pathlist = [p[0] for p in self.pathdata.values()]
         for k, i in self.itemdata.items():
             if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
                 for p in pathlist:
@@ -273,28 +336,6 @@ class Model(object):
         return True
 
         
-    def refreshAll(self):
-        self.buildTagsHtmlStr()
-        self.refreshObj[TAG_CONFIG_F_NAME].refreshData(self.tagHtmlStr)
-        self.refreshObj[PATH_CONFIG_F_NAME].refreshData(self.pathes)
-        self.refreshObj[ITEM_CONFIG_F_NAME].refreshData(self.displayItemData)
-    
-    def initTags(self):
-        self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
-        
-        ss = re.split(self.tagBodyTemplate%'(.|\n)+', self.tagHtmlStr, flags=re.IGNORECASE)#ignore \n
-        self.tagHeaderStr = ss[0]
-        self.tagFooterStr = ss[2]
-        
-        #content inited by items
-        self.buildTagsHtmlStr()
-    def buildTagsHtmlStr(self):
-        tags = []
-        for aTag in self.tag2item.keys():
-            tags.append(self.tagTemplate%('%s:%d'%(aTag, self.tag2item[aTag])))
-        tagStr = '\n'.join(tags)
-        
-        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
     def addTag4Item(self, rowKey, newTag):
         self.dowithTag4Item(rowKey, newTag, True)
     def rmvTag4Item(self, rowKey, newTag):
@@ -314,12 +355,12 @@ class Model(object):
                 else:
                     itemInAll[TAG_COL_IDX] = ''
                 #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
-                if not newTag in self.tag2item.keys():
+                if not newTag in self.tagdata.keys():
                     ui_utils.warn('tag %s not exists'%newTag)
-                elif 1 == self.tag2item[newTag]:
-                    self.tag2item.pop(newTag)
+                elif 1 == self.tagdata[newTag]:
+                    self.tagdata.pop(newTag)
                 else:
-                    self.tag2item[newTag] -= 1
+                    self.tagdata[newTag] -= 1
         else:
             if isAdd:
                 if len(itemInAll[TAG_COL_IDX]) > 0:
@@ -327,10 +368,10 @@ class Model(object):
                 else:
                     itemInAll[TAG_COL_IDX] = newTag
                 #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
-                if newTag in self.tag2item.keys():
-                    self.tag2item[newTag] += 1
+                if newTag in self.tagdata.keys():
+                    self.tagdata[newTag] += 1
                 else:
-                    self.tag2item[newTag] = 1
+                    self.tagdata[newTag] = 1
             else:
                 ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
     def filterItemByTag(self, tag):
@@ -342,42 +383,6 @@ class Model(object):
                 itemTags = item[TAG_COL_IDX].split(';')
                 if tag in itemTags:
                     self.displayItemData[key] = item
-    def initItemsAndColumn(self):
-        lines = io.load(ITEM_CONFIG_F_NAME)
-        
-        self.itemColumnStr = lines[0]
-        self.itemcolumns = self.initColumns(lines[0])
-        
-        idx = 0
-        for line in lines[1:]:
-            linestr = line.split(',')
-            self.itemdata[idx] = linestr
-            
-            tagstr = linestr[-2]
-            if len(tagstr) > 0:
-                for aTag in tagstr.split(';'):
-                    if aTag in self.tag2item.keys():
-                        self.tag2item[aTag] += 1
-                    else:
-                        self.tag2item[aTag] = 1
-            
-            idx += 1
-            
-        self.displayItemData = self.itemdata
-    def initColumns(self, colStr):
-        columns = []
-        for col in colStr.split(','):
-            attrs = col.split(';')
-            column = []
-            column.append(attrs[0])
-            column.append(int(attrs[1]))
-            if 'left' in attrs[2].lower():
-                column.append(wx.LIST_FORMAT_LEFT)
-            else:
-                column.append(wx.LIST_FORMAT_RIGHT)
-            column.append(attrs[3])
-            columns.append(column)
-        return columns
     def tostrsItem(self):
         ret = [self.itemColumnStr]
         for i in self.itemdata.values():
@@ -386,20 +391,15 @@ class Model(object):
     def saveItem(self):
         io.save(self.tostrsItem(), ITEM_CONFIG_F_NAME)
             
-    def initPath(self):
-        idx = 0
-        for line in io.load(PATH_CONFIG_F_NAME):
-            self.pathes[idx] = (line.strip(), )
-            idx += 1
     def tostrsPath(self):
-        return [p[0] for p in self.pathes.values()]
+        return [p[0] for p in self.pathdata.values()]
     def savePath(self):
         io.save(self.tostrsPath())
     #def getPathes(self):
     #    return self.pathes
     def _getIdByPath(self, aPath):
-        for id in self.pathes.keys():
-            if aPath == self.pathes[id][0]:
+        for id in self.pathdata.keys():
+            if aPath == self.pathdata[id][0]:
                 return id
         return -1
     def addPath(self, newpath):
@@ -408,18 +408,18 @@ class Model(object):
             ui_utils.warn('%s already exists'%newpath)
             return False
         else:
-            if {} == self.pathes:
+            if {} == self.pathdata:
                 newid = 1
             else:
-                newid = max(self.pathes.keys()) + 1
-            self.pathes[newid] = (newpath, )
-            ui_utils.log('model add %s, pathes count is %d'%(newpath,len(self.pathes.keys())))
+                newid = max(self.pathdata.keys()) + 1
+            self.pathdata[newid] = (newpath, )
+            ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
             return True
     def rmvPath(self, oldpath):
         id = self._getIdByPath(oldpath)
         if not -1 == id:
-            self.pathes.pop(id)
-            ui_utils.log('model rmv %s, pathes count is %d'%(oldpath,len(self.pathes.keys())))
+            self.pathdata.pop(id)
+            ui_utils.log('model rmv %s, pathdata count is %d'%(oldpath,len(self.pathdata.keys())))
             return True
         else:
             ui_utils.warn('%s not exists'%oldpath)
@@ -445,18 +445,18 @@ class Model(object):
             self.itemdata[newid] = [fn,file,'',SYS_TAG_NEW,'']
             self.displayItemData[newid] = self.itemdata[newid]
             
-            if SYS_TAG_NEW in self.tag2item.keys():
-                self.tag2item[SYS_TAG_NEW] += 1
+            if SYS_TAG_NEW in self.tagdata.keys():
+                self.tagdata[SYS_TAG_NEW] += 1
             else:
-                self.tag2item[SYS_TAG_NEW] = 1
+                self.tagdata[SYS_TAG_NEW] = 1
             ui_utils.log('Item %s added'%file)
     def rmvItem(self, listKey):
         itemTags = self.itemdata[listKey][TAG_COL_IDX].split(';')
         for itemTag in itemTags:
             if not 0 == len(itemTag):
-                self.tag2item[itemTag] -= 1
-            if 0 == self.tag2item[itemTag]:
-                self.tag2item.pop(itemTag)
+                self.tagdata[itemTag] -= 1
+            if 0 == self.tagdata[itemTag]:
+                self.tagdata.pop(itemTag)
         self.itemdata.pop(listKey)
         #self.displayItemData.pop(listKey)
         
