@@ -246,7 +246,7 @@ class Model(object):
         self.initItemsAndColumn()
         self.initTags()
         
-        self.refreshObj = {'tag':None,'path':None,'item':None}
+        self.refreshObj = {}
         
         #print self.itemcolumns
         #ui_utils.log(str(['%s:%d'%(t,len(i)) for t,i in self.tag2item.items()]))
@@ -269,9 +269,9 @@ class Model(object):
         
     def refreshAll(self):
         self.buildTagsHtmlStr()
-        self.refreshObj['tag'].refreshData(self.tagHtmlStr)
-        self.refreshObj['path'].refreshData(self.pathes)
-        self.refreshObj['item'].refreshData(self.displayItemData)
+        self.refreshObj[TAG_CONFIG_F_NAME].refreshData(self.tagHtmlStr)
+        self.refreshObj[PATH_CONFIG_F_NAME].refreshData(self.pathes)
+        self.refreshObj[ITEM_CONFIG_F_NAME].refreshData(self.displayItemData)
     
     def initTags(self):
         self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
@@ -622,7 +622,7 @@ def makeMainWin():
     view1 = SplitView(mainWin.getViewPort())
     
     view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin).htmlTagClick)
-    model.refreshObj['tag'] = view2#view2.refreshData(model.tagHtmlStr)
+    model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
     evtHandler = EventHandler(view3, model, mainWin)
@@ -630,14 +630,14 @@ def makeMainWin():
     view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
     FileDropTarget(view3, model, mainWin)
-    model.refreshObj['path'] = view3#view3.refreshData(model.getPathes())
+    model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
     evtHandler = EventHandler(view4, model, mainWin)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
-    model.refreshObj['item'] = view4#view4.refreshData(model.displayItemData)
+    model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
             
     model.refreshAll()
     mainWin.log('show me done')
