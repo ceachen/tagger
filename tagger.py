@@ -269,6 +269,45 @@ class Model(object):
                 if tag in itemTags:
                     self.displayItemData[key] = item
     
+    def addTag4Item(self, rowKey, newTag):
+        self._dowithTag4Item(rowKey, newTag, True)
+    def rmvTag4Item(self, rowKey, newTag):
+        self._dowithTag4Item(rowKey, newTag, False)
+    def _dowithTag4Item(self, rowKey, newTag, isAdd):
+        itemInAll = self.itemdata[rowKey]
+        #itemInDisplay = self.displayItemData[rowKey]
+        itemTagStr = itemInAll[TAG_COL_IDX]
+        itemTags = itemTagStr.split(';')
+        if isAdd:
+            if newTag in itemTags:
+                ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
+            else:
+                if len(itemInAll[TAG_COL_IDX]) > 0:
+                    itemInAll[TAG_COL_IDX] = '%s;%s' % (itemInAll[TAG_COL_IDX], newTag)
+                else:
+                    itemInAll[TAG_COL_IDX] = newTag
+                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                if newTag in self.tagdata.keys():
+                    self.tagdata[newTag] += 1
+                else:
+                    self.tagdata[newTag] = 1
+        else:
+            if newTag in itemTags:
+                itemTags.remove(newTag)
+                if len(itemTags) > 0:
+                    itemInAll[TAG_COL_IDX] = ';'.join(itemTags)
+                else:
+                    itemInAll[TAG_COL_IDX] = ''
+                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
+                if not newTag in self.tagdata.keys():
+                    ui_utils.warn('tag %s not exists'%newTag)
+                elif 1 == self.tagdata[newTag]:
+                    self.tagdata.pop(newTag)
+                else:
+                    self.tagdata[newTag] -= 1
+            else:
+                ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
+                
     def _initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
@@ -346,44 +385,6 @@ class Model(object):
         return True
 
         
-    def addTag4Item(self, rowKey, newTag):
-        self.dowithTag4Item(rowKey, newTag, True)
-    def rmvTag4Item(self, rowKey, newTag):
-        self.dowithTag4Item(rowKey, newTag, False)
-    def dowithTag4Item(self, rowKey, newTag, isAdd):
-        itemInAll = self.itemdata[rowKey]
-        #itemInDisplay = self.displayItemData[rowKey]
-        itemTagStr = itemInAll[TAG_COL_IDX]
-        itemTags = itemTagStr.split(';')
-        if newTag in itemTags:
-            if isAdd:
-                ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
-            else:
-                itemTags.remove(newTag)
-                if len(itemTags) > 0:
-                    itemInAll[TAG_COL_IDX] = ';'.join(itemTags)
-                else:
-                    itemInAll[TAG_COL_IDX] = ''
-                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
-                if not newTag in self.tagdata.keys():
-                    ui_utils.warn('tag %s not exists'%newTag)
-                elif 1 == self.tagdata[newTag]:
-                    self.tagdata.pop(newTag)
-                else:
-                    self.tagdata[newTag] -= 1
-        else:
-            if isAdd:
-                if len(itemInAll[TAG_COL_IDX]) > 0:
-                    itemInAll[TAG_COL_IDX] = '%s;%s' % (itemInAll[TAG_COL_IDX], newTag)
-                else:
-                    itemInAll[TAG_COL_IDX] = newTag
-                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
-                if newTag in self.tagdata.keys():
-                    self.tagdata[newTag] += 1
-                else:
-                    self.tagdata[newTag] = 1
-            else:
-                ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
     def tostrsItem(self):
         ret = [self.itemColumnStr]
         for i in self.itemdata.values():
