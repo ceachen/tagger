@@ -514,6 +514,7 @@ class EventHandler(object):
         ^ [3] remove path by click DEL key, multi select is supported
         ^ --------
         '''
+        '''
         filenames = []
         list = self.sender
         selectedRow = list.GetFirstSelected()
@@ -528,6 +529,8 @@ class EventHandler(object):
         self.model.savePath()
         self.model.saveItem()
         self.winlog('rmv path done')
+        '''
+        self._delRow(self.model.delPathByEvt, 'rmv path done')
         
     def pathSync(self, event):
         '''
@@ -591,7 +594,22 @@ class EventHandler(object):
             self.winlog('edit cell done')
         del self.oldval
         
+    def _delRow(self, delImpl, msg):
+        filenames = []
+        list = self.sender
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+            filenames.append(selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+            
+        delImpl(filenames)
         
+        self.model.refreshAll()
+        self.model.savePath()
+        self.model.saveItem()
+        self.winlog(msg)
+    
         
 
     def _listSetATag(self, newTag):
