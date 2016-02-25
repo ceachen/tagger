@@ -481,10 +481,13 @@ class EventHandler(object):
         added = False
         for file in filenames:
             if os.path.isdir(file):
-                added = self.model.addPath(file)
-                if added:
+                thispathadded = self.model.addPath(file)
+                if thispathadded:
+                    added = True
                     for f in os.listdir(file):
                         self.model.addItem(os.path.join(file, f), f)
+                else:
+                    ui_utils.warn('add path [%s] failed'%file)
             else:
                 ui_utils.warn('add path [%s] failed'%file)
             
