@@ -1,3 +1,4 @@
 D:\cartoon-jp-gongqijun
 D:\github\tagger
 C:\log
+D:\filesync
