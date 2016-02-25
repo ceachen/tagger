@@ -216,7 +216,7 @@ class io(object):
             ui_utils.log('load %s, %d lines' % (fname, len(lines)))
         return lines
     @staticmethod
-    def save(lst, fname=PATH_CONFIG_F_NAME):
+    def save(lst, fname):
         file = codecs.open(fname, 'w', 'gb2312')
         for l in lst:
             file.write('%s\n'%l)
@@ -308,6 +308,18 @@ class Model(object):
             else:
                 ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
                 
+    def saveItem(self):
+        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME)
+    def savePath(self):
+        io.save(self._tostrsPath(), PATH_CONFIG_F_NAME)
+    def _tostrsItem(self):
+        ret = [self.itemColumnStr]
+        for i in self.itemdata.values():
+            ret.append(','.join(i))
+        return ret
+    def _tostrsPath(self):
+        return [p[0] for p in self.pathdata.values()]
+         
     def _initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
@@ -385,20 +397,6 @@ class Model(object):
         return True
 
         
-    def tostrsItem(self):
-        ret = [self.itemColumnStr]
-        for i in self.itemdata.values():
-            ret.append(','.join(i))
-        return ret
-    def saveItem(self):
-        io.save(self.tostrsItem(), ITEM_CONFIG_F_NAME)
-            
-    def tostrsPath(self):
-        return [p[0] for p in self.pathdata.values()]
-    def savePath(self):
-        io.save(self.tostrsPath())
-    #def getPathes(self):
-    #    return self.pathes
     def _getIdByPath(self, aPath):
         for id in self.pathdata.keys():
             if aPath == self.pathdata[id][0]:
@@ -410,10 +408,7 @@ class Model(object):
             ui_utils.warn('%s already exists'%newpath)
             return False
         else:
-            if {} == self.pathdata:
-                newid = 1
-            else:
-                newid = max(self.pathdata.keys()) + 1
+            newid = self._newid(self.pathdata)
             self.pathdata[newid] = (newpath, )
             ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
             return True
@@ -426,46 +421,6 @@ class Model(object):
         else:
             ui_utils.warn('%s not exists'%oldpath)
             return False
-            
-    def _findItem(self, file):
-        for f in self.itemdata.values():
-            if file == f[1]:
-                return True
-        return False
-    def addItem(self, file, fn):
-        found = self._findItem(file)
-        if found:
-            ui_utils.warn('Item %s already exists'%file)
-        else:
-            if {} == self.itemdata:
-                newid = 1
-            else:
-                newid = max(self.itemdata.keys()) + 1
-                
-            if os.path.isfile(file):
-                fn = os.path.splitext(fn)[0]#only file name, without ext
-            self.itemdata[newid] = [fn,file,'',SYS_TAG_NEW,'']
-            self.displayItemData[newid] = self.itemdata[newid]
-            
-            if SYS_TAG_NEW in self.tagdata.keys():
-                self.tagdata[SYS_TAG_NEW] += 1
-            else:
-                self.tagdata[SYS_TAG_NEW] = 1
-            ui_utils.log('Item %s added'%file)
-    def rmvItem(self, listKey):
-        itemTags = self.itemdata[listKey][TAG_COL_IDX].split(';')
-        for itemTag in itemTags:
-            if not 0 == len(itemTag):
-                self.tagdata[itemTag] -= 1
-            if 0 == self.tagdata[itemTag]:
-                self.tagdata.pop(itemTag)
-        self.itemdata.pop(listKey)
-        #self.displayItemData.pop(listKey)
-        
-        
-        
-        
-        
     def addPathByEvt(self, filenames):
         added = False
         for file in filenames:
@@ -484,10 +439,50 @@ class Model(object):
     def delPathByEvt(self, filenames):
         for file in filenames:
             self.rmvPath(file[0])
+                
+    def _newid(self, dict):
+        if {} == dict:
+            return 1
+        else:
+            return max(dict.keys()) + 1
+                
+    def _findItem(self, file):
+        for f in self.itemdata.values():
+            if file == f[1]:
+                return True
+        return False
+    def addItem(self, filepath, filename):
+        found = self._findItem(filepath)
+        if found:
+            ui_utils.warn('Item %s already exists'%filepath)
+        else:
+            newid = self._newid(self.itemdata)
+                
+            if os.path.isfile(filepath):
+                filename = os.path.splitext(filename)[0]#only file name, without ext
+            self.itemdata[newid] = [filename,filepath,'',SYS_TAG_NEW,'']
+            self.displayItemData[newid] = self.itemdata[newid]
+            
+            self._incTag(SYS_TAG_NEW)
+            ui_utils.log('Item %s added'%filepath)
     def delItemByEvt(self, filenames):
         for file in filenames:
-            self.rmvItem(file[1])
-            
+            self._rmvItemHard(file[PATH_COL_IDX])
+    def _rmvItemHard(self, rowid):
+        itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
+        for itemTag in itemTags:
+            if not 0 == len(itemTag):
+                self.tagdata[itemTag] -= 1
+            if 0 == self.tagdata[itemTag]:
+                self.tagdata.pop(itemTag)
+        self.itemdata.pop(rowid)
+        #self.displayItemData.pop(listKey)
+        
+        
+        
+        
+        
+
             
             
             
@@ -607,16 +602,16 @@ class EventHandler(object):
             winlog(str(e), True)
         
     def _delRow(self, delImpl, msg):
-        filenames = []
+        fileAttr = []
         list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
             selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
             selIdx = list.GetItemData(selectedRow)
-            filenames.append((selKey, selIdx))
+            fileAttr.append((selKey, selIdx))
             selectedRow = list.GetNextSelected(selectedRow)
             
-        delImpl(filenames)
+        delImpl(fileAttr)
         
         self.model.refreshAll()
         self.model.savePath()
