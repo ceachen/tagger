@@ -18,6 +18,7 @@ from wx.lib.embeddedimage import PyEmbeddedImage
 import sys, os
 import codecs
 import re
+import datetime
 import unittest
 
 #--------BEGIG default config
@@ -36,6 +37,9 @@ PATH_COL_IDX = 1
 #--------BEGIN ui utils
 class ui_utils(object):
     _log_inited = False
+    @staticmethod
+    def today():
+        return datetime.datetime.now().strftime('%Y-%m-%d')
     @staticmethod
     def _log_init():
         wx.Log.SetActiveTarget(wx.LogStderr())
@@ -412,10 +416,10 @@ class Model(object):
                     
         for p in pathlist:
             for f in os.listdir(p):
-                self.addItem(os.path.join(p, f), f)
+                self._addItem(os.path.join(p, f), f)
                 
         return True
-    def addItem(self, filepath, filename):
+    def _addItem(self, filepath, filename):
         found = self._findItem(filepath)
         if found:
             ui_utils.warn('Item %s already exists'%filepath)
@@ -424,7 +428,7 @@ class Model(object):
                 
             if os.path.isfile(filepath):
                 filename = os.path.splitext(filename)[0]#only file name, without ext
-            self.itemdata[newid] = [filename,filepath,'',SYS_TAG_NEW,'']
+            self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
             self.displayItemData[newid] = self.itemdata[newid]
             
             self._incTag(SYS_TAG_NEW)
@@ -458,7 +462,7 @@ class Model(object):
                 if thispathadded:
                     added = True
                     for f in os.listdir(file):
-                        self.addItem(os.path.join(file, f), f)
+                        self._addItem(os.path.join(file, f), f)
                 else:
                     ui_utils.warn('add path [%s] failed'%file)
             else:

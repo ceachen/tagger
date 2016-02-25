@@ -1,12 +1,12 @@
-name;100;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,comment;260;left;
+name;200;left;,path;100;right;ro,created;80;right;,tag;100;left;ro,comment;260;left;
 .gitattributes,D:\github\tagger\.gitattributes,,sys-new;sys-del,
 借东西的小人阿莉埃蒂,D:\cartoon-jp-gongqijun\18.借东西的小人阿莉埃蒂.mkv,,sys-new;hhh;sys-del,
 vol_3761611952,D:\mdb\vol_3761611952.usn,adsf,好一点;good;a,
 tfs_3761611952,D:\mdb\tfs_3761611952.db3,,好一点,
 tagger,D:\github\tagger,asdfadsf,a,
 12.我的邻居山田君,D:\cartoon-jp-gongqijun\12.我的邻居山田君.mkv,asdfasdf,sys-new;sys-del,asdfadsfasdf
-fastcopy,D:\del\fastcopy,adsfadsf,sys-new,
 tagger - 副本,D:\github\tagger - 副本.py,adsfadsf,sys-new;sys-del,
 14.猫的报恩,D:\cartoon-jp-gongqijun\14.猫的报恩.mkv,,sys-new;sys-del,
-MailMaster,D:\del\MailMaster,,sys-del,
 others,D:\BaiduYunDownload\others,,,
+fastcopy,D:\del\fastcopy,2016-02-26,sys-new,
+MailMaster,D:\del\MailMaster,2016-02-26,sys-new,
