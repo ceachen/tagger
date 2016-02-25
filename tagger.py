@@ -269,11 +269,11 @@ class Model(object):
                 if tag in itemTags:
                     self.displayItemData[key] = item
     
-    def addTag4Item(self, rowKey, newTag):
+    def addTag4Item(self, rowKey, newTag):#only for tag set
         self._dowithTag4Item(rowKey, newTag, True)
-    def rmvTag4Item(self, rowKey, newTag):
+    def rmvTag4Item(self, rowKey, newTag):#only for tag set
         self._dowithTag4Item(rowKey, newTag, False)
-    def _dowithTag4Item(self, rowKey, newTag, isAdd):
+    def _dowithTag4Item(self, rowKey, newTag, isAdd):#only for tag set
         itemInAll = self.itemdata[rowKey]
         #itemInDisplay = self.displayItemData[rowKey]
         itemTagStr = itemInAll[TAG_COL_IDX]
@@ -373,11 +373,17 @@ class Model(object):
             column.append(attrs[3])#ro
             columns.append(column)
         self.itemcolumns = columns
+    
     def _incTag(self, aTag):
         if aTag in self.tagdata.keys():
             self.tagdata[aTag] += 1
         else:
             self.tagdata[aTag] = 1
+    def _newid(self, dict):
+        if {} == dict:
+            return 1
+        else:
+            return max(dict.keys()) + 1
     
     def syncPath(self):
         pathlist = [p[0] for p in self.pathdata.values()]
@@ -395,62 +401,6 @@ class Model(object):
                 self.addItem(os.path.join(p, f), f)
                 
         return True
-
-        
-    def _getIdByPath(self, aPath):
-        for id in self.pathdata.keys():
-            if aPath == self.pathdata[id][0]:
-                return id
-        return -1
-    def addPath(self, newpath):
-        id = self._getIdByPath(newpath)
-        if not -1 == id:
-            ui_utils.warn('%s already exists'%newpath)
-            return False
-        else:
-            newid = self._newid(self.pathdata)
-            self.pathdata[newid] = (newpath, )
-            ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
-            return True
-    def rmvPath(self, oldpath):
-        id = self._getIdByPath(oldpath)
-        if not -1 == id:
-            self.pathdata.pop(id)
-            ui_utils.log('model rmv %s, pathdata count is %d'%(oldpath,len(self.pathdata.keys())))
-            return True
-        else:
-            ui_utils.warn('%s not exists'%oldpath)
-            return False
-    def addPathByEvt(self, filenames):
-        added = False
-        for file in filenames:
-            if os.path.isdir(file):
-                thispathadded = self.addPath(file)
-                if thispathadded:
-                    added = True
-                    for f in os.listdir(file):
-                        self.addItem(os.path.join(file, f), f)
-                else:
-                    ui_utils.warn('add path [%s] failed'%file)
-            else:
-                ui_utils.warn('add path [%s] failed'%file)
-            
-        return added
-    def delPathByEvt(self, filenames):
-        for file in filenames:
-            self.rmvPath(file[0])
-                
-    def _newid(self, dict):
-        if {} == dict:
-            return 1
-        else:
-            return max(dict.keys()) + 1
-                
-    def _findItem(self, file):
-        for f in self.itemdata.values():
-            if file == f[1]:
-                return True
-        return False
     def addItem(self, filepath, filename):
         found = self._findItem(filepath)
         if found:
@@ -465,6 +415,55 @@ class Model(object):
             
             self._incTag(SYS_TAG_NEW)
             ui_utils.log('Item %s added'%filepath)
+        
+    def _getIdByPath(self, aPath):
+        for id in self.pathdata.keys():
+            if aPath == self.pathdata[id][0]:
+                return id
+        return -1
+    def _addPath(self, newpath):
+        id = self._getIdByPath(newpath)
+        if not -1 == id:
+            ui_utils.warn('%s already exists'%newpath)
+            return False
+        else:
+            newid = self._newid(self.pathdata)
+            self.pathdata[newid] = (newpath, )
+            ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
+            return True
+    def addPathByEvt(self, filenames):
+        added = False
+        for file in filenames:
+            if os.path.isdir(file):
+                thispathadded = self._addPath(file)
+                if thispathadded:
+                    added = True
+                    for f in os.listdir(file):
+                        self.addItem(os.path.join(file, f), f)
+                else:
+                    ui_utils.warn('add path [%s] failed'%file)
+            else:
+                ui_utils.warn('add path [%s] failed'%file)
+            
+        return added
+    def delPathByEvt(self, filenames):
+        for file in filenames:
+            self._rmvPath(file[0])
+    def _rmvPath(self, oldpath):
+        id = self._getIdByPath(oldpath)
+        if not -1 == id:
+            self.pathdata.pop(id)
+            ui_utils.log('model rmv %s, pathdata count is %d'%(oldpath,len(self.pathdata.keys())))
+            return True
+        else:
+            ui_utils.warn('%s not exists'%oldpath)
+            return False
+
+    def _findItem(self, file):
+        for f in self.itemdata.values():
+            if file == f[1]:
+                return True
+        return False
     def delItemByEvt(self, filenames):
         for file in filenames:
             self._rmvItemHard(file[PATH_COL_IDX])
@@ -506,7 +505,7 @@ class EventHandler(object):
             
             self.model.refreshAll()
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
         
     def pathAdd(self, x, y, filenames):#add path
         '''
@@ -523,7 +522,7 @@ class EventHandler(object):
                 self.model.savePath()
                 self.winlog('add path done')
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
             
     def pathDel(self, event):
         '''
@@ -533,7 +532,7 @@ class EventHandler(object):
         try:
             self._delRow(self.model.delPathByEvt, 'rmv path done')
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
         
     def pathSync(self, event):
         '''
@@ -551,7 +550,7 @@ class EventHandler(object):
                 self.model.saveItem()
                 self.winlog('refresh path done')
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
 
     def itemDel(self, event):
         '''
@@ -561,7 +560,7 @@ class EventHandler(object):
         try:
             self._delRow(self.model.delItemByEvt, 'rmv item done')
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
         
     def itemSetTag(self, event):
         '''
@@ -584,7 +583,7 @@ class EventHandler(object):
 
             _dlg.Destroy()
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
         
     def itemSet(self, event):#edit
         '''
@@ -599,7 +598,7 @@ class EventHandler(object):
                 self.winlog('edit cell done')
             del self.oldval
         except Exception, e:
-            winlog(str(e), True)
+            self.winlog(str(e), True)
         
     def _delRow(self, delImpl, msg):
         fileAttr = []
