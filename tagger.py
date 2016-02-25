@@ -375,10 +375,24 @@ class Model(object):
         self.itemcolumns = columns
     
     def _incTag(self, aTag):
+        if '' == aTag:
+            ui_utils.warn('empty tag inc')
+            return
         if aTag in self.tagdata.keys():
             self.tagdata[aTag] += 1
         else:
             self.tagdata[aTag] = 1
+    def _decTag(self, aTag):
+        if '' == aTag:
+            ui_utils.warn('empty tag dec')
+            return
+        if aTag in self.tagdata.keys():
+            self.tagdata[aTag] -= 1
+            if 0 == self.tagdata[aTag]:
+                self.tagdata.pop(aTag)
+        else:
+            ui_utils.warn('dec tag when not exists')
+    
     def _newid(self, dict):
         if {} == dict:
             return 1
@@ -415,6 +429,11 @@ class Model(object):
             
             self._incTag(SYS_TAG_NEW)
             ui_utils.log('Item %s added'%filepath)
+    def _findItem(self, file):
+        for f in self.itemdata.values():
+            if file == f[1]:
+                return True
+        return False
         
     def _getIdByPath(self, aPath):
         for id in self.pathdata.keys():
@@ -459,21 +478,13 @@ class Model(object):
             ui_utils.warn('%s not exists'%oldpath)
             return False
 
-    def _findItem(self, file):
-        for f in self.itemdata.values():
-            if file == f[1]:
-                return True
-        return False
     def delItemByEvt(self, filenames):
         for file in filenames:
             self._rmvItemHard(file[PATH_COL_IDX])
     def _rmvItemHard(self, rowid):
         itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
         for itemTag in itemTags:
-            if not 0 == len(itemTag):
-                self.tagdata[itemTag] -= 1
-            if 0 == self.tagdata[itemTag]:
-                self.tagdata.pop(itemTag)
+            self._decTag(itemTag)
         self.itemdata.pop(rowid)
         #self.displayItemData.pop(listKey)
         
