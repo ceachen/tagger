@@ -1,8 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 0.1
-^ create: 2016-02-24
+^ version: 1.0
+^ create: 2016-02-21
+^ release: 2016-02-25
 ^ platform: py2.7 & wx3.0
 ^ --------
 '''
