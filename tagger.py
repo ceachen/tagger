@@ -259,6 +259,16 @@ class Model(object):
         self.refreshObj[PATH_CONFIG_F_NAME].refreshData(self.pathdata)
         self.refreshObj[ITEM_CONFIG_F_NAME].refreshData(self.displayItemData)
     
+    def filterItemByTag(self, tag):
+        if ALL_TAG == tag:
+            self.displayItemData = self.itemdata
+        else:
+            self.displayItemData = {}
+            for key, item in self.itemdata.items():
+                itemTags = item[TAG_COL_IDX].split(';')
+                if tag in itemTags:
+                    self.displayItemData[key] = item
+    
     def _initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
@@ -374,15 +384,6 @@ class Model(object):
                     self.tagdata[newTag] = 1
             else:
                 ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
-    def filterItemByTag(self, tag):
-        if ALL_TAG == tag:
-            self.displayItemData = self.itemdata
-        else:
-            self.displayItemData = {}
-            for key, item in self.itemdata.items():
-                itemTags = item[TAG_COL_IDX].split(';')
-                if tag in itemTags:
-                    self.displayItemData[key] = item
     def tostrsItem(self):
         ret = [self.itemColumnStr]
         for i in self.itemdata.values():
