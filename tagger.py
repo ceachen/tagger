@@ -452,7 +452,28 @@ class Model(object):
         self.itemdata.pop(listKey)
         #self.displayItemData.pop(listKey)
         
-        
+    def addPathByEvt(self, filenames):
+        _added = False
+        for i_dir in filenames:
+            if os.path.isdir(i_dir):
+                _added = self.addPath(i_dir)
+                if _added:
+                    for i_f in os.listdir(i_dir):
+                        self.addItem(os.path.join(i_dir, i_f), i_f)
+            else:
+                ui_utils.warn('add path [%s] failed because of exists'%i_dir)
+            
+        if _added:
+            self.saveItem()
+            self.savePath()
+            
+        return _added
+    
+    def rmvPathByEvt(self, filenames):
+        for i_file in filenames:
+            self.rmvPath(i_file)
+            ui_utils.log('evt rmv %s'%i_file)
+        self.savePath()
         
         
 #--------BEGIN Controllor
@@ -462,6 +483,50 @@ class EventHandler(object):
         self.model = model
         self.winlog = winlog
         self.modelKeyColIdx = modelKeyColIdx
+        
+    def tagClick(self, tagStr):#select tag
+        '''
+        ^ [1] filter by click tag
+        ^ --------
+        '''
+        _tag = tagStr[1:-1]
+        ui_utils.log(_tag)#trim []
+        self.model.filterItemByTag(_tag.split(':')[0])
+        self.winlog('click tag %s done'%_tag)
+        
+        self.model.refreshAll()
+        
+    def pathAdd(self, x, y, filenames):#add path
+        '''
+        ^ [2] drag&drop path to path list
+        ^ insert path(es) to tag their sub dirs or files
+        ^ --------
+        '''
+        _added = self.model.addPathByEvt(filenames)
+        self.model.refreshAll()
+        self.winlog('add path done')
+            
+    def pathRmv(self, event):
+        '''
+        ^ [3] remove path by click DEL key, multi select is supported
+        ^ --------
+        '''
+        list = self.sender
+        filenames = []
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+            filenames.append(selKey)
+            selectedRow = list.GetNextSelected(selectedRow)
+        
+        self.model.rmvPathByEvt(filenames)
+        
+        self.model.refreshAll()
+        self.winlog('rmv path done')
+        
+        
+        
+        
     def listBeginEdit(self, event):#disable edit: path, tags
         '''
         ^ edit grid cell, some column READONLY by 'ro'
@@ -481,21 +546,6 @@ class EventHandler(object):
             self.winlog('edit cell done')
             del self.oldval
         
-    def pathDel(self, event):
-        '''
-        ^ remove path by click DEL key, multi select is supported
-        ^ --------
-        '''
-        list = self.sender
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            self.model.rmvPath(selKey)
-            ui_utils.log('evt rmv %s'%selKey)
-            selectedRow = list.GetNextSelected(selectedRow)
-        self.model.refreshAll()
-        
-        self.model.savePath()
     def itemDel(self, event):
         '''
         ^ remove item by click DEL key, multi select is supported
@@ -558,8 +608,7 @@ class EventHandler(object):
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self.pathDel(event)
-            self.winlog('del path done')
+            self.pathRmv(event)
         elif wx.WXK_F5 == event.GetKeyCode():
             self.listRefresh(event)
             self.winlog('refresh path done')
@@ -572,40 +621,7 @@ class EventHandler(object):
             self.winlog('set tag for item done')
     
         
-    def htmlTagClick(self, tagStr):#select tag
-        '''
-        ^ filter by click tag
-        ^ --------
-        '''
-        tag = tagStr[1:-1]
-        ui_utils.log(tag)#trim []
-        self.model.filterItemByTag(tag.split(':')[0])
-        self.winlog('click tag %s done'%tag)
         
-        self.model.refreshAll()
-        
-    def onDropFile(self, x, y, filenames):#add path
-        '''
-        ^ drag&drop path to path list
-        ^ insert path(es) to tag their sub dirs or files
-        ^ --------
-        '''
-        added = False
-        for file in filenames:
-            if os.path.isdir(file):
-                added = self.model.addPath(file)
-                if added:
-                    for f in os.listdir(file):
-                        self.model.addItem(os.path.join(file, f), f)
-            else:
-                ui_utils.warn('add path [%s] failed'%file)
-            
-        if added:
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.model.savePath()
-            
-            self.winlog('add path done')
             
             
             
@@ -618,7 +634,7 @@ class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, winlog):
         wx.FileDropTarget.__init__(self)  
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(None, model, winlog).onDropFile
+        self.dropFile = EventHandler(None, model, winlog).pathAdd
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames) 
         
@@ -629,7 +645,7 @@ def makeMainWin():
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).htmlTagClick)
+    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).tagClick)
     model.registerWin(TAG_CONFIG_F_NAME, view2)#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
