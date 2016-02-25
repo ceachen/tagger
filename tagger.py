@@ -446,7 +446,7 @@ class Model(object):
             if aPath == self.pathdata[id][0]:
                 return id
         return -1
-    def _addPath(self, newpath):#only add Path, not care items
+    def _addPath(self, newpath):#called by addPath. not care items
         id = self._getIdByPath(newpath)
         if not -1 == id:
             ui_utils.warn('%s already exists'%newpath)
@@ -475,7 +475,7 @@ class Model(object):
     def delPathByEvt(self, filenames):#only rmv Path, not care items
         for file in filenames:
             self._rmvPath(file[0])
-    def _rmvPath(self, oldpath):
+    def _rmvPath(self, oldpath):#called by delPathEvt
         id = self._getIdByPath(oldpath)
         if not -1 == id:
             self.pathdata.pop(id)
@@ -486,7 +486,7 @@ class Model(object):
     def delItemByEvt(self, filenames):
         for file in filenames:
             self._rmvItemHard(file[PATH_COL_IDX])
-    def _rmvItemHard(self, rowid):
+    def _rmvItemHard(self, rowid):#called by delItemByEvt
         itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
         for itemTag in itemTags:
             self._decTag(itemTag)
@@ -545,6 +545,7 @@ class EventHandler(object):
     def pathDel(self, event):
         '''
         ^ [3] remove path by click DEL key, multi select is supported
+        ^ DO NOT DELETE items under path
         ^ --------
         '''
         try:
