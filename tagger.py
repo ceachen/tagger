@@ -85,6 +85,7 @@ class MainWin(wx.App):
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
         #frame.CreateToolBar()
         self.sb = frame.CreateStatusBar()
+        self.sb.SetFieldsCount(2)
         
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
@@ -100,8 +101,11 @@ class MainWin(wx.App):
     def show(self):
         self.MainLoop()
         
-    def log(self, text):
-        self.sb.PushStatusText(text)
+    def log(self, text, onErr=False):
+        if not onErr:
+            self.sb.PushStatusText(text)
+        else:
+            self.sb.PushStatusText(text, 1)
         
     def getViewPort(self):
         return self.frame
@@ -497,10 +501,13 @@ class EventHandler(object):
         ^ [1] filter by click tag
         ^ --------
         '''
-        tag = tagStr[1:-1]
-        self.model.filterItemByTag(tag.split(':')[0])
-        
-        self.model.refreshAll()
+        try:
+            tag = tagStr[1:-1]
+            self.model.filterItemByTag(tag.split(':')[0])
+            
+            self.model.refreshAll()
+        except Exception, e:
+            winlog(str(e), True)
         
     def pathAdd(self, x, y, filenames):#add path
         '''
@@ -508,20 +515,26 @@ class EventHandler(object):
         ^ insert path(es) to tag their sub dirs or files
         ^ --------
         '''
-        added = self.model.addPathByEvt(filenames)
-            
-        if added:
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.model.savePath()
-            self.winlog('add path done')
+        try:
+            added = self.model.addPathByEvt(filenames)
+                
+            if added:
+                self.model.refreshAll()
+                self.model.saveItem()
+                self.model.savePath()
+                self.winlog('add path done')
+        except Exception, e:
+            winlog(str(e), True)
             
     def pathDel(self, event):
         '''
         ^ [3] remove path by click DEL key, multi select is supported
         ^ --------
         '''
-        self._delRow(self.model.delPathByEvt, 'rmv path done')
+        try:
+            self._delRow(self.model.delPathByEvt, 'rmv path done')
+        except Exception, e:
+            winlog(str(e), True)
         
     def pathSync(self, event):
         '''
@@ -531,18 +544,24 @@ class EventHandler(object):
         ^ pathes list must be focused
         ^ --------
         '''
-        self.model.syncPath()
-        
-        self.model.refreshAll()
-        self.model.saveItem()
-        self.winlog('refresh path done')
+        try:
+            self.model.syncPath()
+            
+            self.model.refreshAll()
+            self.model.saveItem()
+            self.winlog('refresh path done')
+        except Exception, e:
+            winlog(str(e), True)
 
     def itemDel(self, event):
         '''
         ^ [5] remove item by click DEL key, multi select is supported
         ^ --------
         '''        
-        self._delRow(self.model.delItemByEvt, 'rmv item done')
+        try:
+            self._delRow(self.model.delItemByEvt, 'rmv item done')
+        except Exception, e:
+            winlog(str(e), True)
         
     def itemSetTag(self, event):
         '''
@@ -550,31 +569,37 @@ class EventHandler(object):
         ^ '+' means add, '-' means del, split tags by ';'
         ^ --------
         '''
-        _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
-        if _dlg.ShowModal() == wx.ID_OK:
-            ui_utils.log(_dlg.GetValue())
-            
-            for newTag in _dlg.GetValue().split(';'):
-                newTag = newTag.strip()
-                self._itemSetOneTag(newTag)
+        try:
+            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
+            if _dlg.ShowModal() == wx.ID_OK:
+                ui_utils.log(_dlg.GetValue())
                 
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.winlog('set tag done')
+                for newTag in _dlg.GetValue().split(';'):
+                    newTag = newTag.strip()
+                    self._itemSetOneTag(newTag)
+                    
+                self.model.refreshAll()
+                self.model.saveItem()
+                self.winlog('set tag done')
 
-        _dlg.Destroy()
+            _dlg.Destroy()
+        except Exception, e:
+            winlog(str(e), True)
         
     def itemSet(self, event):#edit
         '''
         ^ [7] edit grid cell, some column READONLY by 'ro'
         ^ --------
         '''
-        if not self.oldval == event.Text:
-            #event.Allow()
-            self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text#refresh automatically
-            self.model.saveItem()
-            self.winlog('edit cell done')
-        del self.oldval
+        try:
+            if not self.oldval == event.Text:
+                #event.Allow()
+                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text#refresh automatically
+                self.model.saveItem()
+                self.winlog('edit cell done')
+            del self.oldval
+        except Exception, e:
+            winlog(str(e), True)
         
     def _delRow(self, delImpl, msg):
         filenames = []
@@ -608,11 +633,14 @@ class EventHandler(object):
             selectedRow = list.GetNextSelected(selectedRow)
         
     def listBeginEdit(self, event):#disable edit: path, tags
-        if READONLY == self.sender.columns[event.Column][3]:
-            event.Veto()#Readonly
-        else:
-            self.oldval = event.Text
-            ui_utils.log('edit item')
+        try:
+            if READONLY == self.sender.columns[event.Column][3]:
+                event.Veto()#Readonly
+            else:
+                self.oldval = event.Text
+                ui_utils.log('edit item')
+        except Exception, e:
+            winlog(str(e), True)
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
