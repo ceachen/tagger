@@ -32,7 +32,7 @@ import unittest
 ADD_ITEM_RECURSION = False
 
 PATH_CONFIG_F_NAME = '_pathes.txt'
-TAG_CONFIG_F_NAME = '_tags.htm'
+TAG_CONFIG_F_NAME = '_tags.txt'
 ITEM_CONFIG_F_NAME = '_items.txt'
 EXT_CONFIG_F_NAME = '_ext.txt'
 
