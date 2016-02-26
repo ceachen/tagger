@@ -1,2 +1,2 @@
-mov:.mkv;.rm;.rmvb
+mov:.mkv;.rm;.rmvb;.mp4
 doc:.doc;.docx;.xls;.xlsx;.ppt;.pptx;.pdf;.txt

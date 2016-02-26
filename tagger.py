@@ -36,8 +36,8 @@ ITEM_CONFIG_F_NAME = '_items.txt'
 EXT_CONFIG_F_NAME = '_ext.txt'
 
 READONLY = 'ro'
-SYS_TAG_NEW = 'sys-new'
-SYS_TAG_DEL = 'sys-del'
+SYS_TAG_NEW = '[NEW]'
+SYS_TAG_DEL = '[DEL]'
 ALL_TAG ='ALL'
 
 TAG_COL_IDX = 3
@@ -585,7 +585,7 @@ class Model(object):
     
     def autoTagEvt(self, filenames):
         for file, rowKey in filenames:
-            _ext = os.path.splitext(file)[1]
+            _ext = os.path.splitext(file)[1].lower()
             if not '' == _ext:
                 if _ext in self.ext.keys():
                     self.addTag4Item(rowKey, self.ext[_ext])
