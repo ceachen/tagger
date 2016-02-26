@@ -95,6 +95,7 @@ class MainWin(wx.App):
         self.sb.SetFieldsCount(2)
         
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
+        #self.tb.AddStretchableSpace()#right align
         search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
         search.SetDescriptiveText('example: row[?] == "" or "" in row[?]')
         self.tb.AddControl(search)
@@ -228,11 +229,11 @@ class TestSearchCtrl(wx.SearchCtrl):
 
     def OnTextEntered(self, evt):
         text = self.GetValue()
-        if self.doSearch(text):
-            self.searches.append(text)
-            if len(self.searches) > self.maxSearches:
-                del self.searches[0]
-            self.SetMenu(self.MakeMenu())            
+        
+        self.searches.append(text)
+        if len(self.searches) > self.maxSearches:
+            del self.searches[0]
+        self.SetMenu(self.MakeMenu())
         self.SetValue("")
 
     def OnMenuItem(self, evt):
