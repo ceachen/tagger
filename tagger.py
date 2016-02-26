@@ -552,6 +552,13 @@ class Model(object):
     def delItemByEvt(self, filenames):
         for file in filenames:
             self._rmvItemHard(file[PATH_COL_IDX])
+            
+    def autoTagEvt(self, filenames):
+        for file, rowKey in filenames:
+            _ext = os.path.splitext(file)[1]
+            if not '' == _ext:
+                self.addTag4Item(rowKey, _ext)
+            
     def _rmvItemHard(self, rowid):#called by delItemByEvt
         itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
         for itemTag in itemTags:
@@ -646,7 +653,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
             
-    def pathDel(self, event):
+    def pathDel(self):
         '''
         ^ [3] remove path by click DEL key, multi select is supported
         ^ DO NOT DELETE items under path
@@ -658,7 +665,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
         
-    def pathSync(self, event):
+    def pathSync(self):
         '''
         ^ [4] refresh item for all pathes by click F5 key
         ^ if +folder-item: add to item
@@ -677,7 +684,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
 
-    def itemDel(self, event):
+    def itemDel(self):
         '''
         ^ [5] remove item by click DEL key, multi select is supported
         ^ --------
@@ -688,7 +695,19 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
         
-    def itemSetTag(self, event):
+    def autoTag(self):
+        '''
+        ^ [10] remove path by click DEL key, multi select is supported
+        ^ DO NOT DELETE items under path
+        ^ --------
+        '''
+        try:
+            self._delRow(self.model.autoTagEvt, 'auto tag done')
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+        
+    def itemSetTag(self):
         '''
         ^ [6] set tags of ITEM by click F2 key, multi select is supported
         ^ '+' means add, '-' means del, split tags by ';'
@@ -745,8 +764,6 @@ class EventHandler(object):
         self.model.saveItem()
         self.winlog(msg)
     
-        
-
     def _itemSetOneTag(self, newTag, rev=False):
         list = self.sender
         selectedRow = list.GetFirstSelected()
@@ -776,31 +793,43 @@ class EventHandler(object):
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
-            self.pathDel(event)
+            self.pathDel()
         elif wx.WXK_F5 == event.GetKeyCode():
-            self.pathSync(event)
+            self.pathSync()
+    
     def itemListKeyDown(self, event):
         '''
-        ^ set sys-new by click F11
+        ^ [11] set/unset sys-new by click F11 
         ^ --------
-        ^ set sys-del by click F12
+        ^ [12] set/unset sys-del by click F12
         ^ --------
         '''
         if wx.WXK_DELETE == event.GetKeyCode():
-            self.itemDel(event)
+            self.itemDel()
         elif wx.WXK_F2 == event.GetKeyCode():
-            self.itemSetTag(event)
+            self.itemSetTag()
             
         elif wx.WXK_F11 == event.GetKeyCode():
-            self._itemSetOneTag(SYS_TAG_NEW, True)
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.winlog('set tag done')
+            try:
+                self._itemSetOneTag(SYS_TAG_NEW, True)
+                self.model.refreshAll()
+                self.model.saveItem()
+                self.winlog('set tag done')
+            except Exception, e:
+                self.winlog(str(e), True)
+                raise e
         elif wx.WXK_F12 == event.GetKeyCode():
-            self._itemSetOneTag(SYS_TAG_DEL, True)
-            self.model.refreshAll()
-            self.model.saveItem()
-            self.winlog('set tag done')
+            try:
+                self._itemSetOneTag(SYS_TAG_DEL, True)
+                self.model.refreshAll()
+                self.model.saveItem()
+                self.winlog('set tag done')
+            except Exception, e:
+                self.winlog(str(e), True)
+                raise e
+            
+        elif wx.WXK_F5 == event.GetKeyCode():
+            self.autoTag()
     
         
         
