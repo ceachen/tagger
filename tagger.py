@@ -33,6 +33,7 @@ ADD_ITEM_RECURSION = False
 PATH_CONFIG_F_NAME = '_pathes.txt'
 TAG_CONFIG_F_NAME = '_tags.htm'
 ITEM_CONFIG_F_NAME = '_items.txt'
+EXT_CONFIG_F_NAME = '_ext.txt'
 
 READONLY = 'ro'
 SYS_TAG_NEW = 'sys-new'
@@ -95,7 +96,7 @@ class MainWin(wx.App):
     def __init__(self):
         wx.App.__init__(self, redirect=False)
     def OnInit(self):
-        frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(800,600),
+        frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(1200,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
         self.sb = frame.CreateStatusBar()
         #self.sb.SetFieldsCount(2)
@@ -315,6 +316,8 @@ class Model(object):
         self.itemcolumns = []#[[col1,width,align,ro,],]
         self.itemColumnStr = None
         
+        self.ext = {}
+        
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
         #self.tagColorTemplate = '<font color=%s>%s</font>'
 
@@ -324,6 +327,7 @@ class Model(object):
         self._initPath()
         self._initItemsAndColumn()
         self._initTagHtml()
+        self._initExt()
         
         self.refreshObj = {}
         
@@ -453,6 +457,13 @@ class Model(object):
             column.append(attrs[3])#ro
             columns.append(column)
         self.itemcolumns = columns
+    def _initExt(self):
+        for line in io.load(EXT_CONFIG_F_NAME):
+            line = line.strip()
+            _ss = line.split(':')
+            _exts = _ss[1].split(';')
+            for _ext in _exts:
+                self.ext[_ext] = _ss[0]
     
     def _incTag(self, aTag):
         if '' == aTag:
@@ -576,7 +587,11 @@ class Model(object):
         for file, rowKey in filenames:
             _ext = os.path.splitext(file)[1]
             if not '' == _ext:
-                self.addTag4Item(rowKey, _ext)
+                if _ext in self.ext.keys():
+                    self.addTag4Item(rowKey, self.ext[_ext])
+                    self.rmvTag4Item(rowKey, _ext)#rmv tag before define
+                else:
+                    self.addTag4Item(rowKey, _ext)
             
     def filterItemByFormular(self, text):
         ui_utils.log('filter by formular: %s'%text)
@@ -822,7 +837,7 @@ class EventHandler(object):
             self.itemSetTag()
         elif wx.WXK_F8 == event.GetKeyCode():
             self.itemOpen()
-        elif wx.WXK_F6 == event.GetKeyCode():
+        elif wx.WXK_F6 == event.GetKeyCode():#select all
             for i in range(self.sender.GetItemCount()):
                 self.sender.Select(i)
             
