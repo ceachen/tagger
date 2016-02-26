@@ -207,10 +207,10 @@ class ListView(wx.ListCtrl,
     # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
     def GetSortImages(self):
         return (self.sm_dn, self.sm_up)
-    def onRevSort(self):
+    def onRevSort(self, colIdx):
         _defaultSorter = self.GetColumnSorter
         self.GetColumnSorter = self.GetColumnSorterRev
-        self.SortListItems(PATH_COL_IDX, int(not self._colSortFlag[PATH_COL_IDX]))
+        self.SortListItems(colIdx, int(not self._colSortFlag[colIdx]))
         self.GetColumnSorter = _defaultSorter
         
     def __revpath(self, p):
@@ -892,7 +892,7 @@ class EventHandler(object):
                 self.sender.Select(i)
         elif wx.WXK_F9 == event.GetKeyCode():#user define sorter
             self.winlog('sort by path rev done')
-            self.sender.onRevSort()
+            self.sender.onRevSort(PATH_COL_IDX)
             
         elif wx.WXK_F11 == event.GetKeyCode():
             try:
