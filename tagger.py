@@ -42,7 +42,7 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
-HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open'
+HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F6:SelectAll'
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -212,6 +212,12 @@ class ListView(wx.ListCtrl,
     3 : ("George Michael", "Praying For Time", "Rock"),}
     '''
     def refreshData(self, listItemDict):
+        #for select statue after refresh
+        selIdxes = []
+        for i in range(self.GetItemCount()):
+            if self.IsSelected(i):
+                selIdxes.append(self.GetItemData(i))
+        
         self.itemDataMap = listItemDict
         
         self.DeleteAllItems()
@@ -220,6 +226,10 @@ class ListView(wx.ListCtrl,
             for i in range(1, len(data)):
                 self.SetStringItem(index, i, data[i])
             self.SetItemData(index, key)
+            
+            #for select statue after refresh
+            if key in selIdxes:
+                self.Select(index)
         ui_utils.addFullExpandChildComponent(self.Parent, self)
         
 class TestSearchCtrl(wx.SearchCtrl):
@@ -809,6 +819,9 @@ class EventHandler(object):
             self.itemSetTag()
         elif wx.WXK_F8 == event.GetKeyCode():
             self.itemOpen()
+        elif wx.WXK_F6 == event.GetKeyCode():
+            for i in range(self.sender.GetItemCount()):
+                self.sender.Select(i)
             
         elif wx.WXK_F11 == event.GetKeyCode():
             try:
