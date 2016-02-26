@@ -1,14 +1,15 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.11
+^ version: 1.2
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
 
 ^ bug: RuntimeWarning when delItem--syncPath--sortByTag
-^ req: find by str
 ^ req: show item id in list
+
+^ done in v1.2: find by formular
 ^ --------
 '''
 
@@ -230,12 +231,13 @@ class TestSearchCtrl(wx.SearchCtrl):
     def OnTextEntered(self, evt):
         text = self.GetValue()
         
+        self.doSearch(text)
         self.searches.append(text)
         if len(self.searches) > self.maxSearches:
             del self.searches[0]
         self.SetMenu(self.MakeMenu())
         self.SetValue("")
-
+        
     def OnMenuItem(self, evt):
         text = self.searches[evt.GetId()-1]
         self.doSearch(text)
