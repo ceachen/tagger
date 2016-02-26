@@ -326,6 +326,12 @@ class Model(object):
                 if tag in itemTags:
                     self.displayItemData[key] = item
     
+    def hasTag(self, rowKey, aTag):
+        itemInAll = self.itemdata[rowKey]
+        itemTagStr = itemInAll[TAG_COL_IDX]
+        itemTags = itemTagStr.split(';')
+        return aTag in itemTags
+        
     def addTag4Item(self, rowKey, newTag):#only for tag set
         self._dowithTag4Item(rowKey, newTag, True)
     def rmvTag4Item(self, rowKey, newTag):#only for tag set
@@ -741,15 +747,20 @@ class EventHandler(object):
     
         
 
-    def _itemSetOneTag(self, newTag):
+    def _itemSetOneTag(self, newTag, rev=False):
         list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
             rowKey = list.GetItemData(selectedRow)
-            if '+' == newTag[:1]:
-                self.model.addTag4Item(rowKey, newTag[1:])
-            elif '-' == newTag[:1]:
-                self.model.rmvTag4Item(rowKey, newTag[1:])
+            if not rev:
+                if '+' == newTag[:1]:
+                    self.model.addTag4Item(rowKey, newTag[1:])
+                elif '-' == newTag[:1]:
+                    self.model.rmvTag4Item(rowKey, newTag[1:])
+            else:
+                _tagSet = self.model.hasTag(rowKey, newTag)
+                if _tagSet: self.model.rmvTag4Item(rowKey, newTag)
+                else: self.model.addTag4Item(rowKey, newTag)
                 
             selectedRow = list.GetNextSelected(selectedRow)
         
@@ -781,12 +792,12 @@ class EventHandler(object):
             self.itemSetTag(event)
             
         elif wx.WXK_F11 == event.GetKeyCode():
-            self._itemSetOneTag('+%s'%SYS_TAG_NEW)
+            self._itemSetOneTag(SYS_TAG_NEW, True)
             self.model.refreshAll()
             self.model.saveItem()
             self.winlog('set tag done')
         elif wx.WXK_F12 == event.GetKeyCode():
-            self._itemSetOneTag('+%s'%SYS_TAG_DEL)
+            self._itemSetOneTag(SYS_TAG_DEL, True)
             self.model.refreshAll()
             self.model.saveItem()
             self.winlog('set tag done')
