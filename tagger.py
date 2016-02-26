@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.3
+^ version: 1.4
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
@@ -9,6 +9,7 @@
 ^ bug: RuntimeWarning when delItem--syncPath--sortByTag
 ^ req: show item id in list
 
+^ done in v1.4: group tag by ext
 ^ done in v1.3: auto tag by ext
 ^ done in v1.2: find by formular
 ^ --------
