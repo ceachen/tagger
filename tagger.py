@@ -98,7 +98,7 @@ class MainWin(wx.App):
         frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(800,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
         self.sb = frame.CreateStatusBar()
-        self.sb.SetFieldsCount(3)
+        #self.sb.SetFieldsCount(2)
         
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
         #self.tb.AddStretchableSpace()#right align
@@ -112,7 +112,7 @@ class MainWin(wx.App):
         self.SetTopWindow(frame)
         self.frame = frame
         
-        self.sb.PushStatusText(HELP, 2)
+        #self.sb.PushStatusText(HELP, 2)
         return True
     def OnExitApp(self, evt):
         self.frame.Close(True)
@@ -132,7 +132,10 @@ class MainWin(wx.App):
         if not onErr:
             self.sb.PushStatusText(text)
         else:
-            self.sb.PushStatusText(text, 1)
+            _dlg = wx.MessageDialog(None, text, 'ERROR', wx.OK)
+            _dlg.ShowModal()
+            _dlg.Destroy()
+            
         
     def getViewPort(self):
         return self.frame
@@ -723,7 +726,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)', '')
+            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
             if _dlg.ShowModal() == wx.ID_OK:
                 ui_utils.log(_dlg.GetValue())
                 

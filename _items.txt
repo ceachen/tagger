@@ -1,6 +1,6 @@
 name;200;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,comment;260;left;
 .gitattributes,D:\github\tagger\.gitattributes,,sys-new,
-借东西的小人阿莉埃蒂,D:\cartoon-jp-gongqijun\18.借东西的小人阿莉埃蒂.mkv,,.mkv;hhh;sys-del;sys-new,
+借东西的小人阿莉埃蒂,D:\cartoon-jp-gongqijun\18.借东西的小人阿莉埃蒂.mkv,,hhh;sys-del;sys-new,
 vol_3761611952,D:\mdb\vol_3761611952.ddb2,2016-02-26,.ddb2;sys-del;sys-new,
 03.萤火虫之墓,D:\cartoon-jp-gongqijun\03.萤火虫之墓.mkv,2016-02-26,.mkv,
 $RECYCLE.BIN,D:\$RECYCLE.BIN,2016-02-26,sys-del,
