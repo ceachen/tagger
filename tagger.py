@@ -214,7 +214,7 @@ class ListView(wx.ListCtrl,
         ui_utils.addFullExpandChildComponent(self.Parent, self)
         
 class TestSearchCtrl(wx.SearchCtrl):
-    maxSearches = 5
+    maxSearches = 50
     
     def __init__(self, parent, id=-1, value="",
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0,
@@ -566,6 +566,7 @@ class EventHandler(object):
         except Exception, e:
             self.winlog(str(e), True)
             raise e
+    
     def formularFilter(self, text):
         '''
         ^ [8] filter by formular
@@ -573,9 +574,26 @@ class EventHandler(object):
         '''
         try:
             ui_utils.log(eval(text))#TODO
-            self.winlog(text)
+            
+            self.model.refreshAll()
+            self.winlog('filter item by formular done')
         except Exception,e:
+            self.winlog(str(e), True)
             raise e
+            
+    def itemOpen(self, event):
+        '''
+        ^ [9] open item of path column by right click
+        ^ --------
+        '''
+        try:
+            os.startfile(\
+                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX])
+            self.winlog('open item done')
+        except Exception,e:
+            self.winlog(str(e), True)
+            raise e
+    
     def pathAdd(self, x, y, filenames):#add path
         '''
         ^ [2] drag&drop path to path list
@@ -761,6 +779,7 @@ def makeMainWin():
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
+    view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)
     model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
             
     model.refreshAll()
