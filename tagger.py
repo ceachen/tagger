@@ -535,7 +535,18 @@ class Model(object):
             self._decTag(itemTag)
         self.itemdata.pop(rowid)
         #self.displayItemData.pop(listKey)
+    
+    def filterItemByFormular(self, text):
+        ui_utils.log('filter by formular: %s'%text)
         
+        if '' == text.strip():
+            self.displayItemData = self.itemdata
+        else:
+            dispitem = {}
+            for id, row in self.displayItemData.items():
+                if eval(text):
+                    dispitem[id] = self.displayItemData[id]
+            self.displayItemData = dispitem
         
         
         
@@ -573,7 +584,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            ui_utils.log(eval(text))#TODO
+            self.model.filterItemByFormular(text)
             
             self.model.refreshAll()
             self.winlog('filter item by formular done')
