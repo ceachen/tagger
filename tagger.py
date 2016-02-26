@@ -769,10 +769,27 @@ class EventHandler(object):
         elif wx.WXK_F5 == event.GetKeyCode():
             self.pathSync(event)
     def itemListKeyDown(self, event):
+        '''
+        ^ set sys-new by click F11
+        ^ --------
+        ^ set sys-del by click F12
+        ^ --------
+        '''
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel(event)
         elif wx.WXK_F2 == event.GetKeyCode():
             self.itemSetTag(event)
+            
+        elif wx.WXK_F11 == event.GetKeyCode():
+            self._itemSetOneTag('+%s'%SYS_TAG_NEW)
+            self.model.refreshAll()
+            self.model.saveItem()
+            self.winlog('set tag done')
+        elif wx.WXK_F12 == event.GetKeyCode():
+            self._itemSetOneTag('+%s'%SYS_TAG_DEL)
+            self.model.refreshAll()
+            self.model.saveItem()
+            self.winlog('set tag done')
     
         
         
