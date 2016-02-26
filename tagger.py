@@ -1,15 +1,15 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.21
+^ version: 1.3
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
 
 ^ bug: RuntimeWarning when delItem--syncPath--sortByTag
 ^ req: show item id in list
-^ req: auto tag by ext
 
+^ done in v1.3: auto tag by ext
 ^ done in v1.2: find by formular
 ^ --------
 '''
@@ -540,24 +540,13 @@ class Model(object):
         
     def delPathByEvt(self, filenames):#only rmv Path, not care items
         for file in filenames:
-            self._rmvPath(file[0])
-    def _rmvPath(self, oldpath):#called by delPathEvt
-        id = self._getIdByPath(oldpath)
-        if not -1 == id:
-            self.pathdata.pop(id)
-            ui_utils.log('model rmv %s, pathdata count is %d'%(oldpath,len(self.pathdata.keys())))
-        else:
-            ui_utils.warn('%s not exists'%oldpath)
+            self._rmvPath(file[1])
+    def _rmvPath(self, id):#called by delPathEvt
+        self.pathdata.pop(id)
 
     def delItemByEvt(self, filenames):
         for file in filenames:
-            self._rmvItemHard(file[PATH_COL_IDX])
-            
-    def autoTagEvt(self, filenames):
-        for file, rowKey in filenames:
-            _ext = os.path.splitext(file)[1]
-            if not '' == _ext:
-                self.addTag4Item(rowKey, _ext)
+            self._rmvItemHard(file[1])
             
     def _rmvItemHard(self, rowid):#called by delItemByEvt
         itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
@@ -566,6 +555,12 @@ class Model(object):
         self.itemdata.pop(rowid)
         #self.displayItemData.pop(listKey)
     
+    def autoTagEvt(self, filenames):
+        for file, rowKey in filenames:
+            _ext = os.path.splitext(file)[1]
+            if not '' == _ext:
+                self.addTag4Item(rowKey, _ext)
+            
     def filterItemByFormular(self, text):
         ui_utils.log('filter by formular: %s'%text)
         
@@ -754,7 +749,7 @@ class EventHandler(object):
         while not -1 == selectedRow:
             selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
             selIdx = list.GetItemData(selectedRow)
-            fileAttr.append((selKey, selIdx))
+            fileAttr.append((selKey, selIdx))#Key(Path), ItemData not row Index
             selectedRow = list.GetNextSelected(selectedRow)
             
         delImpl(fileAttr)
