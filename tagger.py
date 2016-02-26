@@ -1,13 +1,14 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.2
+^ version: 1.21
 ^ create: 2016-02-21
 ^ release: 2016-02-26
 ^ platform: py2.7 & wx3.0
 
 ^ bug: RuntimeWarning when delItem--syncPath--sortByTag
 ^ req: show item id in list
+^ req: auto tag by ext
 
 ^ done in v1.2: find by formular
 ^ --------
@@ -27,6 +28,8 @@ import datetime
 import unittest
 
 #--------BEGIG default config
+ADD_ITEM_RECURSION = False
+
 PATH_CONFIG_F_NAME = '_pathes.txt'
 TAG_CONFIG_F_NAME = '_tags.htm'
 ITEM_CONFIG_F_NAME = '_items.txt'
@@ -453,6 +456,17 @@ class Model(object):
         else:
             return max(dict.keys()) + 1
     
+    def _getChildren(self, rootpath):
+        ret = []
+        if ADD_ITEM_RECURSION:
+            for root, dirs, files in os.walk(rootpath):
+                for file in files:#do not include folder
+                    ret.append((os.path.join(root, file), file))
+        else:
+            for file in os.listdir(rootpath):
+                ret.append((os.path.join(rootpath, file), file))
+        return ret
+    
     def syncPath(self):
         pathlist = [p[0] for p in self.pathdata.values()]#all pathes
         for k, i in self.itemdata.items():
@@ -465,8 +479,8 @@ class Model(object):
                     self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
                     
         for p in pathlist:
-            for f in os.listdir(p):
-                self._addItem(os.path.join(p, f), f)
+            for f in self._getChildren(p):
+                self._addItem(f[0], f[1])
                 
         return True
     def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
@@ -509,8 +523,8 @@ class Model(object):
                 thispathadded = self._addPath(file)
                 if thispathadded:
                     added = True
-                    for f in os.listdir(file):
-                        self._addItem(os.path.join(file, f), f)
+                    for f in self._getChildren(file):
+                        self._addItem(f[0], f[1])
                 else:
                     ui_utils.warn('add path [%s] failed'%file)
             else:
