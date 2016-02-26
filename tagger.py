@@ -42,6 +42,8 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
+HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open'
+
 #--------BEGIN ui utils
 class ui_utils(object):
     _log_inited = False
@@ -96,7 +98,7 @@ class MainWin(wx.App):
         frame = wx.Frame(None, -1, "tagger", pos=(50,50), size=(800,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
         self.sb = frame.CreateStatusBar()
-        self.sb.SetFieldsCount(2)
+        self.sb.SetFieldsCount(3)
         
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
         #self.tb.AddStretchableSpace()#right align
@@ -109,6 +111,8 @@ class MainWin(wx.App):
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
         self.SetTopWindow(frame)
         self.frame = frame
+        
+        self.sb.PushStatusText(HELP, 2)
         return True
     def OnExitApp(self, evt):
         self.frame.Close(True)
@@ -617,7 +621,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
             
-    def itemOpen(self, event):
+    def itemOpen(self):
         '''
         ^ [9] open item of path column by right click
         ^ --------
@@ -803,6 +807,8 @@ class EventHandler(object):
             self.itemDel()
         elif wx.WXK_F2 == event.GetKeyCode():
             self.itemSetTag()
+        elif wx.WXK_F8 == event.GetKeyCode():
+            self.itemOpen()
             
         elif wx.WXK_F11 == event.GetKeyCode():
             try:
@@ -859,7 +865,7 @@ def makeMainWin():
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
-    view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)
+    #view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)#change to F8
     model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
             
     model.refreshAll()
