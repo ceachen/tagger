@@ -36,6 +36,7 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 1. 单选右边列表中一行，点击F6可以打开对应的目录/文件
 <hr>
 1. 支持点击列头排序
+1. 点击F9将按照path列反序排序，即将路径由abc\def\ghi.jkl转换成ghi.jkl\def\abc后再进行排序
 1. 如需扩展列，可直接修改_item.txt中的第一行，自定义列<br>
 （前四列必须依次是name,path,created,tag）
 1. 支持自定义tag的字体大小、颜色<br>

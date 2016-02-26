@@ -27,6 +27,7 @@ import codecs
 import re
 import datetime
 import unittest
+import locale
 
 #--------BEGIG default config
 #USER DEFINE
@@ -47,7 +48,7 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
-HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F6:SelectAll'
+HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F6:SelectAll, F9:SortPathRev'
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -190,7 +191,7 @@ class ListView(wx.ListCtrl,
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         listmix.TextEditMixin.__init__(self)
         listmix.ColumnSorterMixin.__init__(self, 100)
-        
+                    
         #for sort
         self.il = wx.ImageList(16, 16)
         self.sm_up = self.il.Add(ui_utils.get_UpArrow().GetBitmap())
@@ -206,7 +207,47 @@ class ListView(wx.ListCtrl,
     # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
     def GetSortImages(self):
         return (self.sm_dn, self.sm_up)
+    def onRevSort(self):
+        _defaultSorter = self.GetColumnSorter
+        self.GetColumnSorter = self.GetColumnSorterRev
+        self.SortListItems(PATH_COL_IDX, int(not self._colSortFlag[PATH_COL_IDX]))
+        self.GetColumnSorter = _defaultSorter
         
+    def __revpath(self, p):
+        fs = p.split(os.path.sep)
+        fs.reverse()
+        return os.path.sep.join(fs)
+    def GetColumnSorterRev(self):
+        return self.__ColumnSorterRev
+    def __ColumnSorterRev(self, key1, key2):#copy from ColumnSorterMixin.__ColumnSorter
+        col = self._col
+        ascending = self._colSortFlag[col]
+        item1 = self.itemDataMap[key1][col]
+        item2 = self.itemDataMap[key2][col]
+        #rev begin
+        item1 = self.__revpath(item1)
+        item2 = self.__revpath(item2)
+        #rev end
+
+        #--- Internationalization of string sorting with locale module
+        if type(item1) == unicode and type(item2) == unicode:
+            cmpVal = locale.strcoll(item1, item2)
+        elif type(item1) == str or type(item2) == str:
+            cmpVal = locale.strcoll(str(item1), str(item2))
+        else:
+            cmpVal = cmp(item1, item2)
+        #---
+
+        # If the items are equal then pick something else to make the sort value unique
+        if cmpVal == 0:
+            cmpVal = apply(cmp, self.GetSecondarySortValues(col, key1, key2))
+
+        if ascending:
+            return cmpVal
+        else:
+            return -cmpVal
+
+            
     def initColumns(self):
         i = 0
         for col in self.columns:
@@ -214,11 +255,6 @@ class ListView(wx.ListCtrl,
             self.SetColumnWidth(i, col[1])
             i += 1
     
-    '''
-    {1 : ("Bad English", "The Price Of Love", "Rock"),
-    2 : ("DNA featuring Suzanne Vega", "Tom's Diner", "Rock"),
-    3 : ("George Michael", "Praying For Time", "Rock"),}
-    '''
     def refreshData(self, listItemDict):
         #for select statue after refresh
         selIdxes = []
@@ -842,6 +878,8 @@ class EventHandler(object):
         ^ --------
         ^ [12] set/unset sys-del by click F12
         ^ --------
+        ^ [13] sort by path rev by click F9
+        ^ --------
         '''
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel()
@@ -852,6 +890,9 @@ class EventHandler(object):
         elif wx.WXK_F6 == event.GetKeyCode():#select all
             for i in range(self.sender.GetItemCount()):
                 self.sender.Select(i)
+        elif wx.WXK_F9 == event.GetKeyCode():#user define sorter
+            self.winlog('sort by path rev done')
+            self.sender.onRevSort()
             
         elif wx.WXK_F11 == event.GetKeyCode():
             try:
