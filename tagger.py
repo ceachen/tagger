@@ -29,16 +29,19 @@ import datetime
 import unittest
 
 #--------BEGIG default config
+#USER DEFINE
+SYS_TAG_NEW = '[NEW]'
+SYS_TAG_DEL = '[DEL]'
 ADD_ITEM_RECURSION = False
+TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
 
+#SYSTEM DEFINE
 PATH_CONFIG_F_NAME = '_pathes.txt'
 TAG_CONFIG_F_NAME = '_tags.txt'
 ITEM_CONFIG_F_NAME = '_items.txt'
 EXT_CONFIG_F_NAME = '_ext.txt'
 
 READONLY = 'ro'
-SYS_TAG_NEW = '[NEW]'
-SYS_TAG_DEL = '[DEL]'
 ALL_TAG ='ALL'
 
 TAG_COL_IDX = 3
@@ -308,6 +311,7 @@ class Model(object):
         self.tagFooterStr = None
         self.tagTemplate = '<tag>[%s]</tag>'
         self.tagBodyTemplate = '<data>%s</data>'
+        self.tagFontTemplate = '<font color="%s"><font size="%s"><%s>%s</%s></font></font>'
 
         self.pathdata = {}#{1:(path1,),}
         
@@ -422,10 +426,15 @@ class Model(object):
     def _buildTagsHtmlStr(self):
         _tags = []
         for aTag, aCount in self.tagdata.items():
-            _tags.append(self.tagTemplate%('%s:%d'%(aTag, aCount)))
+            _tagHtmlStr = self.tagTemplate%('%s:%d'%(aTag, aCount))
+            if aTag in TAG_COLOR_AND_SIZE.keys():
+                _tagHtmlStr = self.tagFontTemplate%(TAG_COLOR_AND_SIZE[aTag][0], TAG_COLOR_AND_SIZE[aTag][1], TAG_COLOR_AND_SIZE[aTag][2], \
+                    _tagHtmlStr, TAG_COLOR_AND_SIZE[aTag][2])
+            _tags.append(_tagHtmlStr)
         tagStr = '\n'.join(_tags)
         
         self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
+
     def _initItemsAndColumn(self):
         lines = io.load(ITEM_CONFIG_F_NAME)
         
@@ -725,8 +734,7 @@ class EventHandler(object):
         
     def autoTag(self):
         '''
-        ^ [10] remove path by click DEL key, multi select is supported
-        ^ DO NOT DELETE items under path
+        ^ [10] Auto Tag
         ^ --------
         '''
         try:
