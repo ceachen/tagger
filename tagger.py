@@ -108,7 +108,7 @@ class MainWin(wx.App):
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
         #self.tb.AddStretchableSpace()#right align
         search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
-        search.SetDescriptiveText('example: row[?] == "" or "" in row[?]')
+        search.SetDescriptiveText('example: row[?] == u"xxx" or u"xxx" in row[?]. string  must be lead by u, especially for chinese')
         self.tb.AddControl(search)
         self.tb.Realize()
         
@@ -611,7 +611,9 @@ class Model(object):
         else:
             dispitem = {}
             for id, row in self.displayItemData.items():
+                print text
                 if eval(text):
+                    print 'after eval'
                     dispitem[id] = self.displayItemData[id]
             self.displayItemData = dispitem
         
@@ -641,6 +643,7 @@ class EventHandler(object):
             self.model.filterItemByTag(tag.split(':')[0])
             
             self.model.refreshAll()
+            self.winlog('filter item by tag done')
         except Exception, e:
             self.winlog(str(e), True)
             raise e
