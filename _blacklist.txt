@@ -1,0 +1,4 @@
+"EvernoteIERes" in filepath
+"NodeWebKit" in filepath
+".zip" == filepath[-4:]
+".dll" == filepath[-4:]

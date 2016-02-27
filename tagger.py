@@ -31,9 +31,9 @@ import locale
 
 #--------BEGIG default config
 #USER DEFINE
+ADD_ITEM_RECURSION = True
 SYS_TAG_NEW = '[NEW]'
 SYS_TAG_DEL = '[DEL]'
-ADD_ITEM_RECURSION = False
 TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
 
 #SYSTEM DEFINE
@@ -41,6 +41,7 @@ PATH_CONFIG_F_NAME = '_pathes.txt'
 TAG_CONFIG_F_NAME = '_tags.txt'
 ITEM_CONFIG_F_NAME = '_items.txt'
 EXT_CONFIG_F_NAME = '_ext.txt'
+BLACK_LIST_F_NAME = '_blacklist.txt'
 
 READONLY = 'ro'
 ALL_TAG ='ALL'
@@ -48,7 +49,7 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
-HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F6:SelectAll, F9:SortPathRev'
+HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F7:OpenUpperDir, F6:SelectAll, F9:SortPathRev'
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -359,6 +360,8 @@ class Model(object):
         
         self.ext = {}
         
+        self.blacklist = []
+        
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
         #self.tagColorTemplate = '<font color=%s>%s</font>'
 
@@ -369,6 +372,7 @@ class Model(object):
         self._initItemsAndColumn()
         self._initTagHtml()
         self._initExt()
+        self._initBlacklist()
         
         self.refreshObj = {}
         
@@ -459,6 +463,12 @@ class Model(object):
         
         #content inited by items
         self._buildTagsHtmlStr()
+        
+    def _initBlacklist(self):
+        if not os.path.isfile(BLACK_LIST_F_NAME):
+            return
+        self.blacklist = io.load(BLACK_LIST_F_NAME)
+        
     def _buildTagsHtmlStr(self):
         _tags = []
         for aTag, aCount in self.tagdata.items():
@@ -564,6 +574,11 @@ class Model(object):
                 
         return True
     def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
+        for i_blackrule in self.blacklist:
+            if eval(i_blackrule):
+                ui_utils.warn('%s matches %s'%(filepath, i_blackrule))
+                return
+                
         found = self._findItem(filepath)
         if not found:
             newid = self._newid(self.itemdata)
@@ -707,6 +722,15 @@ class EventHandler(object):
             os.startfile(\
                 self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX])
             self.winlog('open item done')
+        except Exception,e:
+            self.winlog(str(e), True)
+            raise e
+    def itemOpenDir(self):
+        try:
+            os.startfile(\
+                os.path.dirname(\
+                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX]))
+            self.winlog('open item dir done')
         except Exception,e:
             self.winlog(str(e), True)
             raise e
@@ -887,6 +911,8 @@ class EventHandler(object):
             self.itemSetTag()
         elif wx.WXK_F8 == event.GetKeyCode():
             self.itemOpen()
+        elif wx.WXK_F7 == event.GetKeyCode():
+            self.itemOpenDir()
         elif wx.WXK_F6 == event.GetKeyCode():#select all
             for i in range(self.sender.GetItemCount()):
                 self.sender.Select(i)
