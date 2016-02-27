@@ -5,13 +5,6 @@
 ^ create: 2016-02-21
 ^ release: 2016-02-27
 ^ platform: py2.7 & wx3.0
-
-^ bug: RuntimeWarning when delItem--syncPath--sortByTag
-^ req: show item id in list
-
-^ done in v1.4: group tag by ext
-^ done in v1.3: auto tag by ext
-^ done in v1.2: find by formular
 ^ --------
 '''
 
@@ -427,7 +420,8 @@ class Model(object):
         itemTags = itemTagStr.split(';')
         if isAdd:
             if newTag in itemTags:
-                ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
+                #ui_utils.warn('add tag fail, %s already set for %d'%(newTag, rowKey))
+                pass
             else:
                 if len(itemInAll[TAG_COL_IDX]) > 0:
                     itemTags.append(newTag)
@@ -447,13 +441,15 @@ class Model(object):
                 else:
                     itemInAll[TAG_COL_IDX] = ''
                 if not newTag in self.tagdata.keys():
-                    ui_utils.warn('tag %s not exists'%newTag)
+                    #ui_utils.warn('tag %s not exists'%newTag)
+                    pass
                 elif 1 == self.tagdata[newTag]:
                     self.tagdata.pop(newTag)
                 else:
                     self.tagdata[newTag] -= 1
             else:
-                ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
+                #ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
+                pass
                 
     def saveItem(self):
         io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME)
@@ -507,6 +503,9 @@ class Model(object):
         
         idx = 0
         for line in lines[1:]:
+            #print line
+            if len(line.strip()) < 2:
+                continue
             linestr = line.split(',')
             self.itemdata[idx] = linestr
             
@@ -541,7 +540,7 @@ class Model(object):
     
     def _incTag(self, aTag):
         if '' == aTag:
-            ui_utils.warn('empty tag inc')
+            #ui_utils.warn('empty tag inc')
             return
         if aTag in self.tagdata.keys():
             self.tagdata[aTag] += 1
@@ -549,14 +548,15 @@ class Model(object):
             self.tagdata[aTag] = 1
     def _decTag(self, aTag):
         if '' == aTag:
-            ui_utils.warn('empty tag dec')
+            #ui_utils.warn('empty tag dec')
             return
         if aTag in self.tagdata.keys():
             self.tagdata[aTag] -= 1
             if 0 == self.tagdata[aTag]:
                 self.tagdata.pop(aTag)
         else:
-            ui_utils.warn('dec tag when not exists')
+            #ui_utils.warn('dec tag when not exists')
+            pass
     
     def _newid(self, dict):
         if {} == dict:
@@ -607,7 +607,7 @@ class Model(object):
             self.displayItemData[newid] = self.itemdata[newid]
             
             self._incTag(SYS_TAG_NEW)
-            ui_utils.log('Item %s added'%filepath)
+            #ui_utils.log('Item %s added'%filepath)
     def _findItem(self, file):#only for _addItem
         for f in self.itemdata.values():
             if file == f[1]:
@@ -622,12 +622,12 @@ class Model(object):
     def _addPath(self, newpath):#called by addPath. not care items
         id = self._getIdByPath(newpath)
         if not -1 == id:
-            ui_utils.warn('%s already exists'%newpath)
+            #ui_utils.warn('%s already exists'%newpath)
             return False
         else:
             newid = self._newid(self.pathdata)
             self.pathdata[newid] = (newpath, )
-            ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
+            #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
             return True
     def addPathByEvt(self, filenames):
         added = False
@@ -639,9 +639,11 @@ class Model(object):
                     for f in self._getChildren(file):
                         self._addItem(f[0], f[1])
                 else:
-                    ui_utils.warn('add path [%s] failed'%file)
+                    #ui_utils.warn('add path [%s] failed'%file)
+                    pass
             else:
-                ui_utils.warn('add path [%s] failed'%file)
+                #ui_utils.warn('add path [%s] failed'%file)
+                pass
             
         return added
         
@@ -829,7 +831,7 @@ class EventHandler(object):
         try:
             _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
             if _dlg.ShowModal() == wx.ID_OK:
-                ui_utils.log(_dlg.GetValue())
+                #ui_utils.log(_dlg.GetValue())
                 
                 for newTag in _dlg.GetValue().split(';'):
                     newTag = newTag.strip()
@@ -900,7 +902,7 @@ class EventHandler(object):
                 event.Veto()#Readonly
             else:
                 self.oldval = event.Text
-                ui_utils.log('edit item')
+                #ui_utils.log('edit item')
         except Exception, e:
             winlog(str(e), True)
         
