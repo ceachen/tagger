@@ -1,1 +1,1 @@
-c:\python27\python tagger.py
+c:\python27\python tagger.py mov

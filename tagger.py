@@ -37,12 +37,12 @@ SYS_TAG_DEL = '[DEL]'
 TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
 
 #SYSTEM DEFINE
-PATH_CONFIG_F_NAME = '_pathes.txt'
-TAG_CONFIG_F_NAME = '_tags.txt'
-ITEM_CONFIG_F_NAME = '_items.txt'
-EXT_CONFIG_F_NAME = '_ext.txt'
-BLACK_LIST_F_NAME = '_blacklist.txt'
-FILTER_CONFIG_F_NAME = '_filters.txt'
+PATH_CONFIG_F_NAME = '__pathes.txt'
+ITEM_CONFIG_F_NAME = '__items.txt'
+EXT_CONFIG_F_NAME = '__ext.txt'
+BLACK_LIST_F_NAME = '__blacklist.txt'
+FILTER_CONFIG_F_NAME = '__filters.txt'
+TAG_CONFIG_F_NAME = '___tag.txt'
 
 READONLY = 'ro'
 ALL_TAG ='ALL'
@@ -1054,4 +1054,11 @@ class test_model(unittest.TestCase):
 #unittest.TestProgram().runTests()
 
 if "__main__" == __name__:
+    if 2 == len(sys.argv):
+        #global PATH_CONFIG_F_NAME, ITEM_CONFIG_F_NAME, EXT_CONFIG_F_NAME, BLACK_LIST_F_NAME, FILTER_CONFIG_F_NAME
+        PATH_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], PATH_CONFIG_F_NAME[1:])
+        ITEM_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], ITEM_CONFIG_F_NAME[1:])
+        EXT_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], EXT_CONFIG_F_NAME[1:])
+        BLACK_LIST_F_NAME = '_%s%s' % (sys.argv[1], BLACK_LIST_F_NAME[1:])
+        FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
     makeMainWin()
