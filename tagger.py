@@ -333,7 +333,11 @@ class io(object):
     def save(lst, fname):
         file = codecs.open(fname, 'w', 'gb2312')
         for l in lst:
-            file.write('%s\n'%l)
+            try:
+                file.write('%s\n'%l)
+            except Exception,e:
+                ui_utils.error('%s\n'%l)
+                raise e
         file.close()
         ui_utils.log('save %s, %d lines' % (fname, len(lst)))
                
@@ -645,7 +649,11 @@ class Model(object):
                 if thispathadded:
                     added = True
                     for f in self._getChildren(file):
-                        self._addItem(f[0], f[1])
+                        try:
+                            self._addItem(f[0], f[1])
+                        except Exception,e:
+                            ui_utils.error(os.path.join(f[0], f[1]))
+                            raise e
                 else:
                     #ui_utils.warn('add path [%s] failed'%file)
                     pass
@@ -771,13 +779,14 @@ class EventHandler(object):
         '''
         try:
             added = self.model.addPathByEvt(filenames)
-                
             if added:
                 self.model.refreshAll()
                 self.model.saveItem()
                 self.model.savePath()
                 #self.winlog('add path done')
         except Exception, e:
+            for f in filenames:
+                ui_utils.error(f)
             self.winlog(str(e), True)
             raise e
             
