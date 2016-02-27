@@ -56,6 +56,7 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 （需要修改tagger.py文件中的TAG_COLOR_AND_SIZE设置）
 <hr>
 1. 【使用提示】以上的操作对应的按键，在tagger窗口的标题中可以看到
+1. 如果使用notepad创建或编辑配置文件，情以ANSI编码方式保存
 
 # 已知缺陷
 * 在项目取消--目录同步后再近些项目排序操作，后台日志中有提示Unicode相关的RuntimeWarning
