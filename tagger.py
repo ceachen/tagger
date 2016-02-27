@@ -1,9 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.4
+^ version: 1.5
 ^ create: 2016-02-21
-^ release: 2016-02-26
+^ release: 2016-02-27
 ^ platform: py2.7 & wx3.0
 
 ^ bug: RuntimeWarning when delItem--syncPath--sortByTag
@@ -42,6 +42,7 @@ TAG_CONFIG_F_NAME = '_tags.txt'
 ITEM_CONFIG_F_NAME = '_items.txt'
 EXT_CONFIG_F_NAME = '_ext.txt'
 BLACK_LIST_F_NAME = '_blacklist.txt'
+FILTER_CONFIG_F_NAME = '_filters.txt'
 
 READONLY = 'ro'
 ALL_TAG ='ALL'
@@ -109,9 +110,9 @@ class MainWin(wx.App):
         
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
         #self.tb.AddStretchableSpace()#right align
-        search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
-        search.SetDescriptiveText('example: row[?] == u"xxx" or u"xxx" in row[?]. string  must be lead by u, especially for chinese')
-        self.tb.AddControl(search)
+        self.search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
+        self.search.SetDescriptiveText('example: row[?] == u"xxx" or u"xxx" in row[?]. string  must be lead by u, especially for chinese')
+        self.tb.AddControl(self.search)
         self.tb.Realize()
         
         frame.Show(True)
@@ -121,6 +122,10 @@ class MainWin(wx.App):
         
         #self.sb.PushStatusText(HELP, 2)
         return True
+        
+    def setToolbarDefaultFilter(self, filters):
+        self.search.setDefaultFilter(filters)
+        
     def OnExitApp(self, evt):
         self.frame.Close(True)
     def OnCloseFrame(self, evt):
@@ -290,10 +295,16 @@ class TestSearchCtrl(wx.SearchCtrl):
         self.doSearch = doSearch
         self.searches = []
 
+    def setDefaultFilter(self, filters):
+        self.searches = filters
+        self.SetMenu(self.MakeMenu())
+        self.SetValue('')
+        
     def OnTextEntered(self, evt):
         text = self.GetValue()
         
         self.doSearch(text)
+        
         self.searches.append(text)
         if len(self.searches) > self.maxSearches:
             del self.searches[0]
@@ -362,6 +373,8 @@ class Model(object):
         
         self.blacklist = []
         
+        self.defaultFilters = []
+        
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
         #self.tagColorTemplate = '<font color=%s>%s</font>'
 
@@ -373,6 +386,7 @@ class Model(object):
         self._initTagHtml()
         self._initExt()
         self._initBlacklist()
+        self._initFilters()
         
         self.refreshObj = {}
         
@@ -392,6 +406,10 @@ class Model(object):
                 if tag in itemTags:
                     self.displayItemData[key] = item
     
+    def _initFilters(self):
+        if os.path.isfile(FILTER_CONFIG_F_NAME):
+            self.defaultFilters = io.load(FILTER_CONFIG_F_NAME)
+            
     def hasTag(self, rowKey, aTag):
         itemInAll = self.itemdata[rowKey]
         itemTagStr = itemInAll[TAG_COL_IDX]
@@ -662,13 +680,9 @@ class Model(object):
         else:
             dispitem = {}
             for id, row in self.displayItemData.items():
-                print text
                 if eval(text):
-                    print 'after eval'
                     dispitem[id] = self.displayItemData[id]
             self.displayItemData = dispitem
-        
-        
         
         
 
@@ -955,6 +969,7 @@ class FileDropTarget(wx.FileDropTarget):
 def makeMainWin():
     mainWin = MainWin()
     model = Model()
+    mainWin.setToolbarDefaultFilter(model.defaultFilters)
     mainWin.registerSearcher(EventHandler(None, model, mainWin.log).formularFilter)
     
     view1 = SplitView(mainWin.getViewPort())
