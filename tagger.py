@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 2.0
+^ version: 2.1
 ^ create: 2016-02-21
 ^ release: 2016-02-28
 ^ platform: py2.7 & wx3.0
@@ -31,6 +31,7 @@ TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
 
 #SYSTEM DEFINE
 PATH_CONFIG_F_NAME = '__pathes.txt'
+ITEM_CONFIG_LINK = '__items_link.txt'#use remote file to save item data
 ITEM_CONFIG_F_NAME = '__items.txt'
 EXT_CONFIG_F_NAME = '__ext.txt'
 BLACK_LIST_F_NAME = '__blacklist.txt'
@@ -344,6 +345,13 @@ class io(object):
 #--------BEGIN Model
 class Model(object):
     def __init__(self):
+        #use remote file to save item data
+        lines = io.load(ITEM_CONFIG_LINK)
+        if 1 <= len(lines):
+            global ITEM_CONFIG_F_NAME
+            ITEM_CONFIG_F_NAME = lines[0]
+            print ITEM_CONFIG_F_NAME
+            
         self.tagdata = {}#{tag1:count,}
         self.tagHtmlStr = None
         self.tagHeaderStr = None
@@ -508,6 +516,7 @@ class Model(object):
         self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
 
     def _initItemsAndColumn(self):
+        print ITEM_CONFIG_F_NAME
         lines = io.load(ITEM_CONFIG_F_NAME)
         
         self.itemColumnStr = lines[0]
@@ -1083,6 +1092,7 @@ if "__main__" == __name__:
         EXT_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], EXT_CONFIG_F_NAME[1:])
         BLACK_LIST_F_NAME = '_%s%s' % (sys.argv[1], BLACK_LIST_F_NAME[1:])
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
+        ITEM_CONFIG_LINK = '_%s%s' % (sys.argv[1], ITEM_CONFIG_LINK[1:])
     makeMainWin()
     
 #How to pydoc
