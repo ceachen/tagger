@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.5
+^ version: 1.6
 ^ create: 2016-02-21
 ^ release: 2016-02-27
 ^ platform: py2.7 & wx3.0
@@ -24,16 +24,13 @@ import locale
 
 #--------BEGIG default config
 #USER DEFINE
-ADD_ITEM_RECURSION = True
-SYS_TAG_NEW = '[NEW]'
-SYS_TAG_DEL = '[DEL]'
-TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
+from user_define import ADD_ITEM_RECURSION, SYS_TAG_NEW, SYS_TAG_DEL, TAG_COLOR_AND_SIZE
+from user_define import blacklist
 
 #SYSTEM DEFINE
 PATH_CONFIG_F_NAME = '__pathes.txt'
 ITEM_CONFIG_F_NAME = '__items.txt'
 EXT_CONFIG_F_NAME = '__ext.txt'
-BLACK_LIST_F_NAME = '__blacklist.txt'
 FILTER_CONFIG_F_NAME = '__filters.txt'
 TAG_CONFIG_F_NAME = '___tag.txt'
 
@@ -364,8 +361,6 @@ class Model(object):
         
         self.ext = {}
         
-        self.blacklist = []
-        
         self.defaultFilters = []
         
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
@@ -378,7 +373,6 @@ class Model(object):
         self._initItemsAndColumn()
         self._initTagHtml()
         self._initExt()
-        self._initBlacklist()
         self._initFilters()
         
         self.refreshObj = {}
@@ -477,11 +471,6 @@ class Model(object):
         
         #content inited by items
         self._buildTagsHtmlStr()
-        
-    def _initBlacklist(self):
-        if not os.path.isfile(BLACK_LIST_F_NAME):
-            return
-        self.blacklist = io.load(BLACK_LIST_F_NAME)
         
     def _buildTagsHtmlStr(self):
         _tags = []
@@ -592,10 +581,9 @@ class Model(object):
                 
         return True
     def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
-        for i_blackrule in self.blacklist:
-            if eval(i_blackrule):
-                ui_utils.warn('%s matches %s'%(filepath, i_blackrule))
-                return
+        if blacklist(filepath):
+            ui_utils.warn('%s blocked by blacklist'%filepath)
+            return
                 
         found = self._findItem(filepath)
         if not found:
@@ -1061,7 +1049,6 @@ if "__main__" == __name__:
         PATH_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], PATH_CONFIG_F_NAME[1:])
         ITEM_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], ITEM_CONFIG_F_NAME[1:])
         EXT_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], EXT_CONFIG_F_NAME[1:])
-        BLACK_LIST_F_NAME = '_%s%s' % (sys.argv[1], BLACK_LIST_F_NAME[1:])
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
     makeMainWin()
     
