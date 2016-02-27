@@ -1,9 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 1.5
+^ version: 2.0
 ^ create: 2016-02-21
-^ release: 2016-02-27
+^ release: 2016-02-28
 ^ platform: py2.7 & wx3.0
 ^ --------
 '''
@@ -43,7 +43,8 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
-HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F7:OpenUpperDir, F6:SelectAll, F9:SortPathRev'
+#HELP = 'F2:SetTag, F5:SyncPath/AutoTag, F11:NEW, F12:DEL, F8:Open, F7:OpenUpperDir, F6:SelectAll, F9:SortPathRev'
+HELP = 'F2:SyncPath; F5:SelectAll, F6:SortPathRev, F7:OpenUpperDir, F8:Open; F9:SetTag, F10:AutoTag, F11:NEW, F12:DEL'
 
 #--------BEGIN ui utils
 class ui_utils(object):
@@ -316,13 +317,6 @@ class TestSearchCtrl(wx.SearchCtrl):
             menu.Append(1+idx, txt)
         return menu        
 #========                   
-                   
-                   
-                   
-                   
-                   
-                   
-                   
                    
 #--------BEGIN Model_Serializable
 class io(object):
@@ -693,10 +687,6 @@ class Model(object):
                     dispitem[id] = self.displayItemData[id]
             self.displayItemData = dispitem
         
-        
-
-            
-            
             
             
 #--------BEGIN Controllor
@@ -924,30 +914,22 @@ class EventHandler(object):
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.pathDel()
-        elif wx.WXK_F5 == event.GetKeyCode():
+        elif wx.WXK_F2 == event.GetKeyCode():
             self.pathSync()
     
     def itemListKeyDown(self, event):
-        '''
-        ^ [11] set/unset sys-new by click F11 
-        ^ --------
-        ^ [12] set/unset sys-del by click F12
-        ^ --------
-        ^ [13] sort by path rev by click F9
-        ^ --------
-        '''
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel()
-        elif wx.WXK_F2 == event.GetKeyCode():
+        elif wx.WXK_F9 == event.GetKeyCode():
             self.itemSetTag()
         elif wx.WXK_F8 == event.GetKeyCode():
             self.itemOpen()
         elif wx.WXK_F7 == event.GetKeyCode():
             self.itemOpenDir()
-        elif wx.WXK_F6 == event.GetKeyCode():#select all
+        elif wx.WXK_F5 == event.GetKeyCode():#select all
             for i in range(self.sender.GetItemCount()):
                 self.sender.Select(i)
-        elif wx.WXK_F9 == event.GetKeyCode():#user define sorter
+        elif wx.WXK_F6 == event.GetKeyCode():#user define sorter
             #self.winlog('sort by path rev done')
             self.sender.onRevSort(PATH_COL_IDX)
             
@@ -970,7 +952,7 @@ class EventHandler(object):
                 self.winlog(str(e), True)
                 raise e
             
-        elif wx.WXK_F5 == event.GetKeyCode():
+        elif wx.WXK_F10 == event.GetKeyCode():
             self.autoTag()
     
         
