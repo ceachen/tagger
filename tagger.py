@@ -24,7 +24,7 @@ import locale
 
 #--------BEGIG default config
 #USER DEFINE
-ADD_ITEM_RECURSION = True
+ADD_ITEM_RECURSION = False
 SYS_TAG_NEW = '[NEW]'
 SYS_TAG_DEL = '[DEL]'
 TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
@@ -138,7 +138,7 @@ class MainWin(wx.App):
         if not onErr:
             self.sb.PushStatusText(text)
         else:
-            _dlg = wx.MessageDialog(None, text, 'ERROR', wx.OK)
+            _dlg = wx.MessageDialog(None, text, 'ERROR', wx.OK | wx.ICON_ERROR)
             _dlg.ShowModal()
             _dlg.Destroy()
             
@@ -381,6 +381,13 @@ class Model(object):
         
         self.refreshObj = {}
     
+    def clearAll(self):
+        self.tagdata = {}
+        self.itemdata = {}
+        self.displayItemData = {}
+        self.pathdata = {}
+        self.displayItemData = {}
+        
     def buildLogStr(self):
         return self.filterLogTemplate % (len(self.displayItemData), self.filterTag, ' and '.join(self.filterStrs))
         
@@ -916,6 +923,13 @@ class EventHandler(object):
             self.pathDel()
         elif wx.WXK_F2 == event.GetKeyCode():
             self.pathSync()
+        elif wx.WXK_F3 == event.GetKeyCode():#clear all
+            _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+            if wx.ID_YES == _dlg.ShowModal():
+                self.model.clearAll()
+                self.model.refreshAll()
+            _dlg.Destroy()
+        
     
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():

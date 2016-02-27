@@ -1,1 +1,6 @@
 name;200;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,DB$;40;left;,comment;260;left;,year;40;left;,artist;100;left;
+g¸ÖÌúÏÀ(x264),\\192.168.1.111\movie\MarvelHeroes\g¸ÖÌúÏÀ(x264),2016-02-28,[NEW],
+bòùòğÏÀ,\\192.168.1.111\movie\MarvelHeroes\bòùòğÏÀ,2016-02-28,[NEW],
+Thumbs,\\192.168.1.111\movie\MarvelHeroes\Thumbs.db,2016-02-28,[NEW],
+¸´³ğÕßÁªÃË,\\192.168.1.111\movie\MarvelHeroes\¸´³ğÕßÁªÃË.mp4,2016-02-28,[NEW],
+³¬·²Ö©ÖëÏÀ the.amazing.spiderman.2012.bluray.720p.x264.ac3-wofei,\\192.168.1.111\movie\MarvelHeroes\³¬·²Ö©ÖëÏÀ the.amazing.spiderman.2012.bluray.720p.x264.ac3-wofei.mkv,2016-02-28,[NEW],
