@@ -98,7 +98,7 @@ class MainWin(wx.App):
     def __init__(self):
         wx.App.__init__(self, redirect=False)
     def OnInit(self):
-        frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(1200,600),
+        frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(1280,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
         self.sb = frame.CreateStatusBar()
         #self.sb.SetFieldsCount(2)
