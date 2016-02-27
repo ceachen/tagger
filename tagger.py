@@ -515,6 +515,11 @@ class Model(object):
         
         self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
 
+    def _initOneItemRow(self, idx, values):
+        self.itemdata[idx] = values
+        for i in range(len(values), len(self.itemcolumns)):
+            self.itemdata[idx].append('')
+            
     def _initItemsAndColumn(self):
         print ITEM_CONFIG_F_NAME
         lines = io.load(ITEM_CONFIG_F_NAME)
@@ -528,7 +533,8 @@ class Model(object):
             if len(line.strip()) < 2:
                 continue
             linestr = line.split(',')
-            self.itemdata[idx] = linestr
+            #self.itemdata[idx] = linestr
+            self._initOneItemRow(idx, linestr)#fix bug when data field count less than column count
             
             tagstr = linestr[TAG_COL_IDX]#tag
             if len(tagstr) > 0:
@@ -624,7 +630,8 @@ class Model(object):
                 
             if os.path.isfile(filepath):
                 filename = os.path.splitext(filename)[0]#only file name, without ext
-            self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
+            #self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
+            self._initOneItemRow(newid, [filename,filepath,ui_utils.today(),SYS_TAG_NEW])#fix bug: add item with less field
             self.displayItemData[newid] = self.itemdata[newid]
             
             self._incTag(SYS_TAG_NEW)
