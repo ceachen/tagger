@@ -1064,3 +1064,7 @@ if "__main__" == __name__:
         BLACK_LIST_F_NAME = '_%s%s' % (sys.argv[1], BLACK_LIST_F_NAME[1:])
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
     makeMainWin()
+    
+#How to pydoc
+#c:\python27\python -m pydoc tagger
+#NOTE: tagger without .py

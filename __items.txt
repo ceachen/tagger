@@ -15,5 +15,6 @@ uk,C:\Program Files\Evernote\Evernote\locales\uk.pak,2016/2/27,.pak,测试中文
 vi,C:\Program Files\Evernote\Evernote\locales\vi.pak,2016/2/27,.pak,测试中文
 zh-CN,C:\Program Files\Evernote\Evernote\locales\zh-CN.pak,2016/2/27,.pak,
 zh-TW,C:\Program Files\Evernote\Evernote\locales\zh-TW.pak,2016/2/27,.pak,
-拯救,C:\Program Files\Evernote\Evernote\locales\da.pak,2016/2/27,.pak;[NEW],
+拯救,C:\Program Files\Evernote\Evernote\locales\da.pak,2016/2/27,.pak;[DEL],
 de,C:\Program Files\Evernote\Evernote\locales\de.pak,呵呵,,
+好,D:\新建文件夹\好.txt,2016-02-27,,
