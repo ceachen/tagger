@@ -368,6 +368,10 @@ class Model(object):
         
         self.defaultFilters = []
         
+        self.filterTag = ALL_TAG
+        self.filterStrs = []
+        self.filterLogTemplate = 'count: {%d}, tag: {%s}, formular: {%s}'
+        
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
         #self.tagColorTemplate = '<font color=%s>%s</font>'
 
@@ -382,6 +386,9 @@ class Model(object):
         self._initFilters()
         
         self.refreshObj = {}
+    
+    def buildLogStr(self):
+        return self.filterLogTemplate % (len(self.displayItemData), self.filterTag, ' and '.join(self.filterStrs))
         
     def refreshAll(self):
         self._buildTagsHtmlStr()
@@ -707,10 +714,14 @@ class EventHandler(object):
         '''
         try:
             tag = tagStr[1:-1]
-            self.model.filterItemByTag(tag.split(':')[0])
+            tag = tag.split(':')[0]
+            self.model.filterItemByTag(tag)
             
             self.model.refreshAll()
-            self.winlog('filter item by tag done')
+            #self.winlog('filter item by tag done')
+            self.model.filterTag = tag
+            self.model.filterStrs = []
+            self.winlog(self.model.buildLogStr())
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -724,7 +735,11 @@ class EventHandler(object):
             self.model.filterItemByFormular(text)
             
             self.model.refreshAll()
-            self.winlog('filter item by formular done')
+            #self.winlog('filter item by formular done')
+            
+            self.model.filterStrs.append(text)
+            self.winlog(self.model.buildLogStr())
+
         except Exception,e:
             self.winlog(str(e), True)
             raise e
@@ -737,7 +752,7 @@ class EventHandler(object):
         try:
             os.startfile(\
                 self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX])
-            self.winlog('open item done')
+            #self.winlog('open item done')
         except Exception,e:
             self.winlog(str(e), True)
             raise e
@@ -746,7 +761,7 @@ class EventHandler(object):
             os.startfile(\
                 os.path.dirname(\
                 self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX]))
-            self.winlog('open item dir done')
+            #self.winlog('open item dir done')
         except Exception,e:
             self.winlog(str(e), True)
             raise e
@@ -764,7 +779,7 @@ class EventHandler(object):
                 self.model.refreshAll()
                 self.model.saveItem()
                 self.model.savePath()
-                self.winlog('add path done')
+                #self.winlog('add path done')
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -795,7 +810,7 @@ class EventHandler(object):
             if modified:
                 self.model.refreshAll()
                 self.model.saveItem()
-                self.winlog('refresh path done')
+                #self.winlog('refresh path done')
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -839,7 +854,7 @@ class EventHandler(object):
                     
                 self.model.refreshAll()
                 self.model.saveItem()
-                self.winlog('set tag done')
+                #self.winlog('set tag done')
 
             _dlg.Destroy()
         except Exception, e:
@@ -856,7 +871,7 @@ class EventHandler(object):
                 #event.Allow()
                 self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text#refresh automatically
                 self.model.saveItem()
-                self.winlog('edit cell done')
+                #self.winlog('edit cell done')
             del self.oldval
         except Exception, e:
             self.winlog(str(e), True)
@@ -877,7 +892,7 @@ class EventHandler(object):
         self.model.refreshAll()
         self.model.savePath()
         self.model.saveItem()
-        self.winlog(msg)
+        #self.winlog(msg)
     
     def _itemSetOneTag(self, newTag, rev=False):
         list = self.sender
@@ -933,7 +948,7 @@ class EventHandler(object):
             for i in range(self.sender.GetItemCount()):
                 self.sender.Select(i)
         elif wx.WXK_F9 == event.GetKeyCode():#user define sorter
-            self.winlog('sort by path rev done')
+            #self.winlog('sort by path rev done')
             self.sender.onRevSort(PATH_COL_IDX)
             
         elif wx.WXK_F11 == event.GetKeyCode():
@@ -941,7 +956,7 @@ class EventHandler(object):
                 self._itemSetOneTag(SYS_TAG_NEW, True)
                 self.model.refreshAll()
                 self.model.saveItem()
-                self.winlog('set tag done')
+                #self.winlog('set tag done')
             except Exception, e:
                 self.winlog(str(e), True)
                 raise e
@@ -950,7 +965,7 @@ class EventHandler(object):
                 self._itemSetOneTag(SYS_TAG_DEL, True)
                 self.model.refreshAll()
                 self.model.saveItem()
-                self.winlog('set tag done')
+                #self.winlog('set tag done')
             except Exception, e:
                 self.winlog(str(e), True)
                 raise e
