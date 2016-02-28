@@ -652,6 +652,9 @@ class Model(object):
                 return id
         return -1
     def _addPath(self, newpath):#called by addPath. not care items
+        if not os.path.sep == newpath[-1]:
+            newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
+            
         id = self._getIdByPath(newpath)
         if not -1 == id:
             #ui_utils.warn('%s already exists'%newpath)
