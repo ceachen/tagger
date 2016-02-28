@@ -73,8 +73,3 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 * 在Event Handler中实现消息的传递。如果对应快捷键，还需要在pathListKeyDown或itemListKeyDown中注册
 * 在makeMainWin中注册消息
 * 如果对应工具栏按钮，还需要在MainWin的_initToolbarBtn中实现
-<hr>
-# 已知缺陷
-* 在项目取消--目录同步后再近些项目排序操作，后台日志中有提示Unicode相关的RuntimeWarning
-* 部分中文符号的处理（如'——'）时会抛异常
-* 由于列表的双击事件还不清楚如何响应，所以目前项目打开操作使用了F8键。后续应该改成双击

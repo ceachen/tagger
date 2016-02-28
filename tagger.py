@@ -253,6 +253,9 @@ class ListView(wx.ListCtrl,
         self.columns = columns
         self._initColumns()
         
+        #wx.ListCtrl.EnableAlternateRowColours(self, True)
+        #print dir(super(wx.ListCtrl, self))#.EnableAlternateRowColours(True)
+        
     # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
     def GetListCtrl(self):
         return self
