@@ -11,7 +11,7 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 以__items.txt为例，可以定义一个名为_mov_items.txt的文件（注意_items.txt必须保留），在工具运行时，后面跟参数mov，就可以加载对应的配置文件<br>
 运行的命令是：python tagger.py mov<br>
 在自定义配置模式下，_[x]_items.txt和_[x]_pathes.txt必须存在，其他配置文件如果不存在，则相应的功能（自动标签/黑名单/预定义条件）不生效
-1. 【本地保存】支持将items.txt保存在其他位置<br>
+1. 【异地保存】支持将items.txt保存在其他位置<br>
 此位置在items_link.txt文件中配置
 <hr>
 1. 【目录管理】将目录拖放到窗口主下角的列表框中，可以将此目录加入管理列表。<br>

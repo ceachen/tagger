@@ -606,11 +606,15 @@ class Model(object):
         pathlist = [p[0] for p in self.pathdata.values()]#all pathes
         for k, i in self.itemdata.items():
             if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
+                _inPath = False
                 for p in pathlist:#do with items not under path
-                    if not p in i[PATH_COL_IDX]:
-                        self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
+                    if p in i[PATH_COL_IDX]:
+                        _inPath = True
                         break
-                if not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
+                        
+                if not _inPath:
+                    self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
+                elif not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
                     self._dowithTag4Item(k, SYS_TAG_DEL, True)#soft delete item
                     
         for p in pathlist:
