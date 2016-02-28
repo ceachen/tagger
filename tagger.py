@@ -600,8 +600,24 @@ class Model(object):
             for key in self.itemdata.keys():
                 if self._hasTag(key, tag):
                     self.displayItemData[key] = self.itemdata[key]
+    def filterItemByFormular(self, text):
+        ui_utils.log('filter by formular: %s'%text)
+        
+        if '' == text.strip():
+            self.displayItemData = self.itemdata
+        else:
+            dispitem = {}
+            for id, row in self.displayItemData.items():
+                if eval(text):
+                    dispitem[id] = self.displayItemData[id]
+                        
+            self.displayItemData = dispitem
         
     def dowithOneTag4OneItem(self, rowKey, newTag, isAdd):#used by tagSet and pathSync
+        if ALL_TAG == newTag:#ALL can't be set as a tag
+            ui_utils.warn('ALL can\' be set as a tag')
+            return
+            
         itemInAll = self.itemdata[rowKey]
         #itemInDisplay = self.displayItemData[rowKey]
         itemTagStr = itemInAll[TAG_COL_IDX]
@@ -624,26 +640,58 @@ class Model(object):
                     itemInAll[TAG_COL_IDX] = ''
                 self._decTag(newTag)
 
-    def syncPath(self):
-        pathlist = [p[0] for p in self.pathdata.values()]#all pathes
-        for k, i in self.itemdata.items():
-            if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
-                _inPath = False
-                for p in pathlist:#do with items not under path
-                    if p in i[PATH_COL_IDX]:
-                        _inPath = True
-                        break
-                        
-                if not _inPath:
-                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
-                elif not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
-                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
-                    
-        for p in pathlist:
-            for f in ui_utils.getSubFiles(p):
-                self._addItem(f[0], f[1])
+    def autoTagEvt(self, filenames):#[(file,key),]
+        for file, rowKey in filenames:
+            _ext = os.path.splitext(file)[1].lower()
+            if not '' == _ext:
+                if _ext in self.ext.keys():
+                    self.dowithOneTag4OneItem(rowKey, self.ext[_ext], True)
+                    self.dowithOneTag4OneItem(rowKey, _ext, False)#rmv tag if defined before
+                else:
+                    self.dowithOneTag4OneItem(rowKey, _ext, True)
+    def delItemByEvt(self, filenames):#[(file,key),]
+        for file in filenames:
+            rowid = file[1]
+            itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
+            for itemTag in itemTags:
+                self._decTag(itemTag)
+            self.itemdata.pop(rowid)            
+    def delPathByEvt(self, filenames):#only rmv Path, not care items
+        for file in filenames:
+            self.pathdata.pop(file[1])
+    def itemSetTagEvt(self, rows, *args):#[(file,key),]tag list, rev
+        for newTag in args[0]:
+            for aRow in rows:
+                rowKey = aRow[1]
+                if 2 == len(args) and args[1]:#Revert Tag
+                    _tagSet = self._hasTag(rowKey, newTag)
+                    if _tagSet: self.dowithOneTag4OneItem(rowKey, newTag, False)#rmv tag
+                    else: self.dowithOneTag4OneItem(rowKey, newTag, True)#add tag
+                else:#default is False
+                    if '+' == newTag[0]:
+                        self.dowithOneTag4OneItem(rowKey, newTag[1:], True)#add tag
+                    elif '-' == newTag[0]:
+                        self.dowithOneTag4OneItem(rowKey, newTag[1:], False)#rmv tag
+
+    def _addPathOnly(self, newpath):#called by addPath. not care items
+        if not os.path.sep == newpath[-1]:
+            newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
+            
+        found = False
+        for p in self.pathdata.values():
+            #if newpath.startswith(p[0]):#fix bug: if upper path added, child path can't be added anymore
+            if newpath == p[0]:#do not change. because there is difference under NO recursion mode
+                found = True
+                break
                 
-        return True
+        if found:
+            #ui_utils.warn('%s already exists'%newpath)
+            return False
+        else:
+            newid = self._newid(self.pathdata)
+            self.pathdata[newid] = (newpath, )
+            #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
+            return True
     def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
         for i_blackrule in self.blacklist:
             if eval(i_blackrule):
@@ -655,6 +703,7 @@ class Model(object):
             if filepath == f[1]:
                 found = True
                 break
+                
         if not found:
             newid = self._newid(self.itemdata)
                 
@@ -665,102 +714,51 @@ class Model(object):
             self.displayItemData[newid] = self.itemdata[newid]
             
             self._incTag(SYS_TAG_NEW)
-            #ui_utils.log('Item %s added'%filepath)
-        
-    def _addPath(self, newpath):#called by addPath. not care items
-        if not os.path.sep == newpath[-1]:
-            newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
-            
-        #d = self._getIdByPath(newpath)
-        #if not -1 == id:
-        found = False
-        for p in self.pathdata.values():
-            if newpath == p[0]:
-                found = True
-                break
-        if found:
-            #ui_utils.warn('%s already exists'%newpath)
-            return False
-        else:
-            newid = self._newid(self.pathdata)
-            self.pathdata[newid] = (newpath, )
-            #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
             return True
-    def addPathByEvt(self, filenames):
+            #ui_utils.log('Item %s added'%filepath)
+        else:
+            return False
+            
+    def addPathByEvt(self, filenames):#[file,]
         added = False
         for file in filenames:
-            if os.path.isdir(file):
-                thispathadded = self._addPath(file)
+            if os.path.isdir(file):#path exists in Disk
+                thispathadded = self._addPathOnly(file)#path added
                 if thispathadded:
                     added = True
                     for f in ui_utils.getSubFiles(file):
                         try:
-                            self._addItem(f[0], f[1])
-                        except Exception,e:
+                            self._addItem(f[0], f[1])#path, filename
+                        except Exception,e:#UnicodeDecodeError
                             ui_utils.error(os.path.join(f[0], f[1]))
                             raise e
-                else:
-                    #ui_utils.warn('add path [%s] failed'%file)
-                    pass
-            else:
-                #ui_utils.warn('add path [%s] failed'%file)
-                pass
             
         return added
-        
-    def delPathByEvt(self, filenames):#only rmv Path, not care items
-        for file in filenames:
-            self._rmvPath(file[1])
-    def _rmvPath(self, id):#called by delPathEvt
-        self.pathdata.pop(id)
 
-    def delItemByEvt(self, filenames):
-        for file in filenames:
-            self._rmvItemHard(file[1])
-            
-    def _rmvItemHard(self, rowid):#called by delItemByEvt
-        itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
-        for itemTag in itemTags:
-            self._decTag(itemTag)
-        self.itemdata.pop(rowid)
-        #self.displayItemData.pop(listKey)
-    
-    def autoTagEvt(self, filenames):
-        for file, rowKey in filenames:
-            _ext = os.path.splitext(file)[1].lower()
-            if not '' == _ext:
-                if _ext in self.ext.keys():
-                    self.dowithOneTag4OneItem(rowKey, self.ext[_ext], True)
-                    self.dowithOneTag4OneItem(rowKey, _ext, False)#rmv tag before define
-                else:
-                    self.dowithOneTag4OneItem(rowKey, _ext, True)
-            
-    def filterItemByFormular(self, text):
-        ui_utils.log('filter by formular: %s'%text)
-        
-        if '' == text.strip():
-            self.displayItemData = self.itemdata
-        else:
-            dispitem = {}
-            for id, row in self.displayItemData.items():
-                if eval(text):
-                    dispitem[id] = self.displayItemData[id]
-            self.displayItemData = dispitem
-        
-    def _itemSetTagImpl(self, rows, *args):#tag list, rev
-        for newTag in args[0]:
-            for aRow in rows:
-                rowKey = aRow[1]
-                if 2 == len(args) and args[1]:#Revert Tag
-                    _tagSet = self._hasTag(rowKey, newTag)
-                    if _tagSet: self.dowithOneTag4OneItem(rowKey, newTag, False)
-                    else: self.dowithOneTag4OneItem(rowKey, newTag, True)
-                else:
-                    if '+' == newTag[0]:
-                        self.dowithOneTag4OneItem(rowKey, newTag[1:], True)
-                    elif '-' == newTag[0]:
-                        self.dowithOneTag4OneItem(rowKey, newTag[1:], False)
-        
+    def syncPath(self):#soft remove item if it's parent path is not exists or file not exists on Disk
+        modified = False
+        pathlist = [p[0] for p in self.pathdata.values()]#all pathes
+        for k, i in self.itemdata.items():
+            if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
+                _inPath = False
+                for p in pathlist:#do with items not under path
+                    if p in i[PATH_COL_IDX]:
+                        _inPath = True
+                        break
+                        
+                if not _inPath:
+                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
+                    modified = True
+                elif not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
+                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
+                    modified = True
+                    
+        for p in pathlist:
+            for f in ui_utils.getSubFiles(p):
+                if self._addItem(f[0], f[1]):
+                    modified = True
+                
+        return modified            
             
 #--------BEGIN Controllor
 class EventHandler(object):
@@ -783,7 +781,6 @@ class EventHandler(object):
         except Exception, e:
             self.winlog(str(e), True)
             raise e
-    
     def formularFilter(self, text):
         try:
             self.model.filterItemByFormular(text)
@@ -793,10 +790,14 @@ class EventHandler(object):
             
             self.model.filterStrs.append(text)
             self.winlog(self.model.buildLogStr())
-
         except Exception,e:
             self.winlog(str(e), True)
             raise e
+    def selAllImpl(self):
+        for i in range(self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemCount()):
+            self.model.refreshObj[ITEM_CONFIG_F_NAME].Select(i)
+    def revSortImpl(self):
+        self.model.refreshObj[ITEM_CONFIG_F_NAME].onRevSort(PATH_COL_IDX)
             
     def itemOpen(self):
         try:
@@ -817,7 +818,68 @@ class EventHandler(object):
         except Exception,e:
             self.winlog(str(e), True)
             raise e
+    def clrImpl(self):#do not save
+        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            self.model.clearAll()
+            self.model.refreshAll()
+        _dlg.Destroy()
     
+    def pathDel(self):
+        try:
+            self._dealRows(self.model.refreshObj[PATH_CONFIG_F_NAME], self.model.delPathByEvt)
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def itemDel(self):
+        try:
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.delItemByEvt)
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def autoTag(self):
+        try:
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.autoTagEvt)
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def itemSetTag(self):
+        try:
+            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
+            if _dlg.ShowModal() == wx.ID_OK:
+                newTags = [x.strip() for x in _dlg.GetValue().split(';')]
+                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, newTags)
+            _dlg.Destroy()
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def _dealRows(self, list, dealImpl, *args):
+        fileAttr = []
+        selectedRow = list.GetFirstSelected()
+        while not -1 == selectedRow:
+            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
+            selIdx = list.GetItemData(selectedRow)
+            fileAttr.append((selKey, selIdx))#Key(Path), ItemData not row Index
+            selectedRow = list.GetNextSelected(selectedRow)
+            
+        dealImpl(fileAttr, *args)
+        
+        self.model.refreshAll()
+        self.model.savePath()
+        self.model.saveItem()
+    def setNewTag(self):
+        try:
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_NEW,), True)
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def setDelTag(self):
+        try:
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_DEL,), True)
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+        
     def pathAdd(self, x, y, filenames):#add path
         try:
             added = self.model.addPathByEvt(filenames)
@@ -827,18 +889,11 @@ class EventHandler(object):
                 self.model.savePath()
                 #self.winlog('add path done')
         except Exception, e:
+            self.winlog(str(e), True)
             for f in filenames:
                 ui_utils.error(f)
-            self.winlog(str(e), True)
             raise e
             
-    def pathDel(self):
-        try:
-            self._dealRows(self.model.refreshObj[PATH_CONFIG_F_NAME], self.model.delPathByEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-        
     def pathSync(self):
         try:
             modified = self.model.syncPath()
@@ -847,38 +902,6 @@ class EventHandler(object):
                 self.model.refreshAll()
                 self.model.saveItem()
                 #self.winlog('refresh path done')
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-
-    def itemDel(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.delItemByEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-        
-    def autoTag(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.autoTagEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-        
-    def itemSetTag(self):
-        try:
-            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
-            if _dlg.ShowModal() == wx.ID_OK:
-                #ui_utils.log(_dlg.GetValue())
-                
-                newTags = [x.strip() for x in _dlg.GetValue().split(';')]
-                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, newTags)
-                    
-                #self.model.refreshAll()
-                #self.model.saveItem()
-                #self.winlog('set tag done')
-
-            _dlg.Destroy()
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -895,24 +918,7 @@ class EventHandler(object):
         except Exception, e:
             self.winlog(str(e), True)
             raise e
-        
-    def _dealRows(self, list, delImpl, *args):
-        fileAttr = []
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            selIdx = list.GetItemData(selectedRow)
-            fileAttr.append((selKey, selIdx))#Key(Path), ItemData not row Index
-            selectedRow = list.GetNextSelected(selectedRow)
-            
-        delImpl(fileAttr, *args)
-        
-        self.model.refreshAll()
-        self.model.savePath()
-        self.model.saveItem()
-        #self.winlog(msg)
-    
-    def listBeginEdit(self, event):#disable edit: path, tags
+    def _listBeginEdit(self, event):#disable edit: path, tags
         try:
             if READONLY == self.model.refreshObj[ITEM_CONFIG_F_NAME].columns[event.Column][3]:
                 event.Veto()#Readonly
@@ -922,17 +928,6 @@ class EventHandler(object):
         except Exception, e:
             winlog(str(e), True)
         
-    def clrImpl(self):
-        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
-        if wx.ID_YES == _dlg.ShowModal():
-            self.model.clearAll()
-            self.model.refreshAll()
-        _dlg.Destroy()
-        
-    def selAllImpl(self):
-        for i in range(self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemCount()):
-            self.model.refreshObj[ITEM_CONFIG_F_NAME].Select(i)
-        
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.pathDel()
@@ -940,30 +935,6 @@ class EventHandler(object):
             self.pathSync()
         elif wx.WXK_F3 == event.GetKeyCode():#clear all
             self.clrImpl()
-            
-    def revSortImpl(self):
-        self.model.refreshObj[ITEM_CONFIG_F_NAME].onRevSort(PATH_COL_IDX)
-    def setNewTag(self):
-        try:
-            #self._itemSetOneTag(SYS_TAG_NEW, True)
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
-            #self.model.refreshAll()
-            #self.model.saveItem()
-            #self.winlog('set tag done')
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def setDelTag(self):
-        try:
-            #self._itemSetOneTag(SYS_TAG_DEL, True)
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
-            #self.model.refreshAll()
-            #self.model.saveItem()
-            #self.winlog('set tag done')
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.itemDel()
@@ -985,8 +956,7 @@ class EventHandler(object):
             self.setDelTag()
         elif wx.WXK_F10 == event.GetKeyCode():
             self.autoTag()
-    
-        
+            
         
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, winlog):
@@ -1019,7 +989,7 @@ def makeMainWin():
     
     view4 = ListView(view1.p3, model.itemcolumns)
     evtHandler = EventHandler(model, mainWin.log, PATH_COL_IDX)#define key column
-    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
+    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
     model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
