@@ -97,6 +97,10 @@ class ui_utils(object):
 class MainWin(wx.App):
     def __init__(self):
         wx.App.__init__(self, redirect=False)
+    def BindToolbarEvent(self, evtId, evtHandler):
+        self.evtHandler[evtId] = evtHandler
+    def OnToolClick(self, event):
+        self.evtHandler[event.GetId()]()
     def OnInit(self):
         frame = wx.Frame(None, -1, "tagger  --  [%s]"%HELP, pos=(50,50), size=(1280,600),
                         style=wx.DEFAULT_FRAME_STYLE, name="tagger")
@@ -104,6 +108,43 @@ class MainWin(wx.App):
         #self.sb.SetFieldsCount(2)
         
         self.tb = frame.CreateToolBar(( wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT))
+        
+        tsize = (24,24)
+        sync_bmp =  (wx.ArtProvider.GetBitmap(wx.ART_REDO, wx.ART_TOOLBAR, tsize), 'sync')
+        clr_bmp =  (wx.ArtProvider.GetBitmap(wx.ART_WARNING, wx.ART_TOOLBAR, tsize), 'clear')
+        all_bmp = (wx.ArtProvider.GetBitmap(wx.ART_LIST_VIEW, wx.ART_TOOLBAR, tsize), 'select all')
+        sortRvt_bmp = (wx.ArtProvider.GetBitmap(wx.ART_UNDO, wx.ART_TOOLBAR, tsize), 'sort reverse')
+        openDir_bmp = (wx.ArtProvider.GetBitmap(wx.ART_FILE_OPEN, wx.ART_TOOLBAR, tsize), 'open dir')
+        open_bmp = (wx.ArtProvider.GetBitmap(wx.ART_GO_FORWARD, wx.ART_TOOLBAR, tsize), 'open')
+        setTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_NEW_DIR, wx.ART_TOOLBAR, tsize), 'set tag')
+        autoTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE_AS, wx.ART_TOOLBAR, tsize), 'auto tag')
+        newTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_ADD_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag NEW')
+        delTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag DEL')
+        #see ico from http://blog.csdn.net/rehung/article/details/1859030
+        self.tb.AddLabelTool(10, sync_bmp[1], sync_bmp[0], shortHelp=sync_bmp[1], longHelp=sync_bmp[1])
+        self.tb.AddLabelTool(20, clr_bmp[1], clr_bmp[0], shortHelp=clr_bmp[1], longHelp=clr_bmp[1])
+        self.tb.AddSeparator()
+        self.tb.AddLabelTool(30, all_bmp[1], all_bmp[0], shortHelp=all_bmp[1], longHelp=all_bmp[1])
+        self.tb.AddLabelTool(40, sortRvt_bmp[1], sortRvt_bmp[0], shortHelp=sortRvt_bmp[1], longHelp=sortRvt_bmp[1])
+        self.tb.AddLabelTool(50, openDir_bmp[1], openDir_bmp[0], shortHelp=openDir_bmp[1], longHelp=openDir_bmp[1])
+        self.tb.AddLabelTool(60, open_bmp[1], open_bmp[0], shortHelp=open_bmp[1], longHelp=open_bmp[1])
+        self.tb.AddSeparator()
+        self.tb.AddLabelTool(70, setTag_bmp[1], setTag_bmp[0], shortHelp=setTag_bmp[1], longHelp=setTag_bmp[1])
+        self.tb.AddLabelTool(80, autoTag_bmp[1], autoTag_bmp[0], shortHelp=autoTag_bmp[1], longHelp=autoTag_bmp[1])
+        self.tb.AddLabelTool(90, newTag_bmp[1], newTag_bmp[0], shortHelp=newTag_bmp[1], longHelp=newTag_bmp[1])
+        self.tb.AddLabelTool(100, delTag_bmp[1], delTag_bmp[0], shortHelp=delTag_bmp[1], longHelp=delTag_bmp[1])
+        self.tb.AddSeparator()
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=10)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=20)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=30)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=40)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=50)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=60)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=70)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=80)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=90)
+        self.tb.AddSeparator()
+        
         #self.tb.AddStretchableSpace()#right align
         self.search = TestSearchCtrl(self.tb, size=(600, -1), doSearch=self._search)
         self.search.SetDescriptiveText('example: row[?] == u"xxx" or u"xxx" in row[?]. string  must be lead by u, especially for chinese')
@@ -976,18 +1017,47 @@ class EventHandler(object):
         except Exception, e:
             winlog(str(e), True)
         
+    def clrImpl(self):
+        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            self.model.clearAll()
+            self.model.refreshAll()
+        _dlg.Destroy()
+        
+    def selAllImpl(self):
+        for i in range(self.sender.GetItemCount()):
+            self.sender.Select(i)
+        
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
             self.pathDel()
         elif wx.WXK_F2 == event.GetKeyCode():
             self.pathSync()
         elif wx.WXK_F3 == event.GetKeyCode():#clear all
-            _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
-            if wx.ID_YES == _dlg.ShowModal():
-                self.model.clearAll()
-                self.model.refreshAll()
-            _dlg.Destroy()
-        
+            self.clrImpl()
+            
+    def revSortImpl(self):
+        self.sender.onRevSort(PATH_COL_IDX)
+    def setNewTag(self):
+        try:
+            #self._itemSetOneTag(SYS_TAG_NEW, True)
+            self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
+            #self.model.refreshAll()
+            #self.model.saveItem()
+            #self.winlog('set tag done')
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
+    def setDelTag(self):
+        try:
+            #self._itemSetOneTag(SYS_TAG_DEL, True)
+            self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
+            #self.model.refreshAll()
+            #self.model.saveItem()
+            #self.winlog('set tag done')
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
     
     def itemListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
@@ -999,33 +1069,15 @@ class EventHandler(object):
         elif wx.WXK_F7 == event.GetKeyCode():
             self.itemOpenDir()
         elif wx.WXK_F5 == event.GetKeyCode():#select all
-            for i in range(self.sender.GetItemCount()):
-                self.sender.Select(i)
+            self.selAllImpl()
         elif wx.WXK_F6 == event.GetKeyCode():#user define sorter
             #self.winlog('sort by path rev done')
-            self.sender.onRevSort(PATH_COL_IDX)
+            self.revSortImpl()
             
         elif wx.WXK_F11 == event.GetKeyCode():
-            try:
-                #self._itemSetOneTag(SYS_TAG_NEW, True)
-                self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
-                #self.model.refreshAll()
-                #self.model.saveItem()
-                #self.winlog('set tag done')
-            except Exception, e:
-                self.winlog(str(e), True)
-                raise e
+            self.setNewTag()
         elif wx.WXK_F12 == event.GetKeyCode():
-            try:
-                #self._itemSetOneTag(SYS_TAG_DEL, True)
-                self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
-                #self.model.refreshAll()
-                #self.model.saveItem()
-                #self.winlog('set tag done')
-            except Exception, e:
-                self.winlog(str(e), True)
-                raise e
-            
+            self.setDelTag()
         elif wx.WXK_F10 == event.GetKeyCode():
             self.autoTag()
     
