@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 3.0
+^ version: 3.1
 ^ create: 2016-02-21
 ^ release: 2016-02-28
 ^ platform: py2.7 & wx3.0
@@ -116,6 +116,9 @@ class MainWin(wx.App):
         self.evtHandler[evtId] = evtHandler
     def _OnToolClick(self, event):
         self.evtHandler[event.GetId()]()
+    def _initToolbarOneBtn(self, _id, bmp):
+        self.tb.AddLabelTool(_id, bmp[1], bmp[0], shortHelp=bmp[1], longHelp=bmp[1])
+        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=_id)
     def _initToolBarBtn(self):
         tsize = (24,24)
         sync_bmp =  (wx.ArtProvider.GetBitmap(wx.ART_REDO, wx.ART_TOOLBAR, tsize), 'sync')
@@ -128,31 +131,23 @@ class MainWin(wx.App):
         autoTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE_AS, wx.ART_TOOLBAR, tsize), 'auto tag')
         newTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_ADD_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag NEW')
         delTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag DEL')
+        batSet_bmp = (wx.ArtProvider.GetBitmap(wx.ART_HELP_SETTINGS, wx.ART_TOOLBAR, tsize), 'multi set')
         #see ico from http://blog.csdn.net/rehung/article/details/1859030
         #id same with Fx key
-        self.tb.AddLabelTool(20, sync_bmp[1], sync_bmp[0], shortHelp=sync_bmp[1], longHelp=sync_bmp[1])
-        self.tb.AddLabelTool(30, clr_bmp[1], clr_bmp[0], shortHelp=clr_bmp[1], longHelp=clr_bmp[1])
+        self._initToolbarOneBtn(20, sync_bmp)
+        self._initToolbarOneBtn(30, clr_bmp)
+        self._initToolbarOneBtn(40, batSet_bmp)
         self.tb.AddSeparator()
-        self.tb.AddLabelTool(50, all_bmp[1], all_bmp[0], shortHelp=all_bmp[1], longHelp=all_bmp[1])
-        self.tb.AddLabelTool(60, sortRvt_bmp[1], sortRvt_bmp[0], shortHelp=sortRvt_bmp[1], longHelp=sortRvt_bmp[1])
-        self.tb.AddLabelTool(70, openDir_bmp[1], openDir_bmp[0], shortHelp=openDir_bmp[1], longHelp=openDir_bmp[1])
-        self.tb.AddLabelTool(80, open_bmp[1], open_bmp[0], shortHelp=open_bmp[1], longHelp=open_bmp[1])
+        self._initToolbarOneBtn(50, all_bmp)
+        self._initToolbarOneBtn(60, sortRvt_bmp)
+        self._initToolbarOneBtn(70, openDir_bmp)
+        self._initToolbarOneBtn(80, open_bmp)
         self.tb.AddSeparator()
-        self.tb.AddLabelTool(90, setTag_bmp[1], setTag_bmp[0], shortHelp=setTag_bmp[1], longHelp=setTag_bmp[1])
-        self.tb.AddLabelTool(100, autoTag_bmp[1], autoTag_bmp[0], shortHelp=autoTag_bmp[1], longHelp=autoTag_bmp[1])
-        self.tb.AddLabelTool(110, newTag_bmp[1], newTag_bmp[0], shortHelp=newTag_bmp[1], longHelp=newTag_bmp[1])
-        self.tb.AddLabelTool(120, delTag_bmp[1], delTag_bmp[0], shortHelp=delTag_bmp[1], longHelp=delTag_bmp[1])
+        self._initToolbarOneBtn(90, setTag_bmp)
+        self._initToolbarOneBtn(100, autoTag_bmp)
+        self._initToolbarOneBtn(110, newTag_bmp)
+        self._initToolbarOneBtn(120, delTag_bmp)
         self.tb.AddSeparator()
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=20)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=30)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=50)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=60)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=70)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=80)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=90)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=100)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=110)
-        self.Bind(wx.EVT_TOOL, self._OnToolClick, id=120)
         self.tb.AddSeparator()
         
     def OnInit(self):
@@ -659,7 +654,7 @@ class Model(object):
     def delPathByEvt(self, filenames):#only rmv Path, not care items
         for file in filenames:
             self.pathdata.pop(file[1])
-    def itemSetTagEvt(self, rows, *args):#[(file,key),]tag list, rev
+    def itemSetTagEvt(self, rows, *args):#[(file,key),], tag list, rev
         for newTag in args[0]:
             for aRow in rows:
                 rowKey = aRow[1]
@@ -672,7 +667,13 @@ class Model(object):
                         self.dowithOneTag4OneItem(rowKey, newTag[1:], True)#add tag
                     elif '-' == newTag[0]:
                         self.dowithOneTag4OneItem(rowKey, newTag[1:], False)#rmv tag
-
+    def itemMultiSetEvt(self, rows, *args):#[(file,key),], cell value
+        setNewValue = args[0]#row[col] = u'xxx'
+        for aRow in rows:
+            row = self.itemdata[aRow[1]]
+            #self.itemdata[aRow[1]][colIdx] = newVal
+            exec(setNewValue)#use exec, not eval
+    
     def _addPathOnly(self, newpath):#called by addPath. not care items
         if not os.path.sep == newpath[-1]:
             newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
@@ -879,6 +880,16 @@ class EventHandler(object):
         except Exception, e:
             self.winlog(str(e), True)
             raise e
+    def batSetImpl(self):
+        try:
+            _dlg = wx.TextEntryDialog(None, "row[?] = u'xxx'", 'Set Cells for Multi Rows')
+            if _dlg.ShowModal() == wx.ID_OK:
+                setNewValue = _dlg.GetValue()
+                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemMultiSetEvt, setNewValue)
+            _dlg.Destroy()
+        except Exception, e:
+            self.winlog(str(e), True)
+            raise e
         
     def pathAdd(self, x, y, filenames):#add path
         try:
@@ -949,7 +960,8 @@ class EventHandler(object):
         elif wx.WXK_F6 == event.GetKeyCode():#user define sorter
             #self.winlog('sort by path rev done')
             self.revSortImpl()
-            
+        elif wx.WXK_F4 == event.GetKeyCode():#multi set cell
+            self.batSetImpl()
         elif wx.WXK_F11 == event.GetKeyCode():
             self.setNewTag()
         elif wx.WXK_F12 == event.GetKeyCode():
@@ -986,6 +998,7 @@ def makeMainWin():
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
     mainWin.BindToolbarEvent(20, evtHandler.pathSync)
     mainWin.BindToolbarEvent(30, evtHandler.clrImpl)
+    mainWin.BindToolbarEvent(40, evtHandler.batSetImpl)
     
     view4 = ListView(view1.p3, model.itemcolumns)
     evtHandler = EventHandler(model, mainWin.log, PATH_COL_IDX)#define key column
