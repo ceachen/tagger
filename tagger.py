@@ -1,7 +1,7 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 2.1
+^ version: 3.0
 ^ create: 2016-02-21
 ^ release: 2016-02-28
 ^ platform: py2.7 & wx3.0
@@ -97,6 +97,8 @@ class ui_utils(object):
 class MainWin(wx.App):
     def __init__(self):
         wx.App.__init__(self, redirect=False)
+        self.evtHandler = {}
+        
     def BindToolbarEvent(self, evtId, evtHandler):
         self.evtHandler[evtId] = evtHandler
     def OnToolClick(self, event):
@@ -121,28 +123,29 @@ class MainWin(wx.App):
         newTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_ADD_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag NEW')
         delTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag DEL')
         #see ico from http://blog.csdn.net/rehung/article/details/1859030
-        self.tb.AddLabelTool(10, sync_bmp[1], sync_bmp[0], shortHelp=sync_bmp[1], longHelp=sync_bmp[1])
-        self.tb.AddLabelTool(20, clr_bmp[1], clr_bmp[0], shortHelp=clr_bmp[1], longHelp=clr_bmp[1])
+        self.tb.AddLabelTool(20, sync_bmp[1], sync_bmp[0], shortHelp=sync_bmp[1], longHelp=sync_bmp[1])
+        self.tb.AddLabelTool(30, clr_bmp[1], clr_bmp[0], shortHelp=clr_bmp[1], longHelp=clr_bmp[1])
         self.tb.AddSeparator()
-        self.tb.AddLabelTool(30, all_bmp[1], all_bmp[0], shortHelp=all_bmp[1], longHelp=all_bmp[1])
-        self.tb.AddLabelTool(40, sortRvt_bmp[1], sortRvt_bmp[0], shortHelp=sortRvt_bmp[1], longHelp=sortRvt_bmp[1])
-        self.tb.AddLabelTool(50, openDir_bmp[1], openDir_bmp[0], shortHelp=openDir_bmp[1], longHelp=openDir_bmp[1])
-        self.tb.AddLabelTool(60, open_bmp[1], open_bmp[0], shortHelp=open_bmp[1], longHelp=open_bmp[1])
+        self.tb.AddLabelTool(50, all_bmp[1], all_bmp[0], shortHelp=all_bmp[1], longHelp=all_bmp[1])
+        self.tb.AddLabelTool(60, sortRvt_bmp[1], sortRvt_bmp[0], shortHelp=sortRvt_bmp[1], longHelp=sortRvt_bmp[1])
+        self.tb.AddLabelTool(70, openDir_bmp[1], openDir_bmp[0], shortHelp=openDir_bmp[1], longHelp=openDir_bmp[1])
+        self.tb.AddLabelTool(80, open_bmp[1], open_bmp[0], shortHelp=open_bmp[1], longHelp=open_bmp[1])
         self.tb.AddSeparator()
-        self.tb.AddLabelTool(70, setTag_bmp[1], setTag_bmp[0], shortHelp=setTag_bmp[1], longHelp=setTag_bmp[1])
-        self.tb.AddLabelTool(80, autoTag_bmp[1], autoTag_bmp[0], shortHelp=autoTag_bmp[1], longHelp=autoTag_bmp[1])
-        self.tb.AddLabelTool(90, newTag_bmp[1], newTag_bmp[0], shortHelp=newTag_bmp[1], longHelp=newTag_bmp[1])
-        self.tb.AddLabelTool(100, delTag_bmp[1], delTag_bmp[0], shortHelp=delTag_bmp[1], longHelp=delTag_bmp[1])
+        self.tb.AddLabelTool(90, setTag_bmp[1], setTag_bmp[0], shortHelp=setTag_bmp[1], longHelp=setTag_bmp[1])
+        self.tb.AddLabelTool(100, autoTag_bmp[1], autoTag_bmp[0], shortHelp=autoTag_bmp[1], longHelp=autoTag_bmp[1])
+        self.tb.AddLabelTool(110, newTag_bmp[1], newTag_bmp[0], shortHelp=newTag_bmp[1], longHelp=newTag_bmp[1])
+        self.tb.AddLabelTool(120, delTag_bmp[1], delTag_bmp[0], shortHelp=delTag_bmp[1], longHelp=delTag_bmp[1])
         self.tb.AddSeparator()
-        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=10)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=20)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=30)
-        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=40)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=50)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=60)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=70)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=80)
         self.Bind(wx.EVT_TOOL, self.OnToolClick, id=90)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=100)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=110)
+        self.Bind(wx.EVT_TOOL, self.OnToolClick, id=120)
         self.tb.AddSeparator()
         
         #self.tb.AddStretchableSpace()#right align
@@ -398,7 +401,6 @@ class Model(object):
         if 1 <= len(lines):
             global ITEM_CONFIG_F_NAME
             ITEM_CONFIG_F_NAME = lines[0]
-            print ITEM_CONFIG_F_NAME
             
         self.tagdata = {}#{tag1:count,}
         self.tagHtmlStr = None
@@ -1110,14 +1112,24 @@ def makeMainWin():
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
     FileDropTarget(view3, model, mainWin.log)
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
+    mainWin.BindToolbarEvent(20, evtHandler.pathSync)
+    mainWin.BindToolbarEvent(30, evtHandler.clrImpl)
     
     view4 = ListView(view1.p3, model.itemcolumns)
     evtHandler = EventHandler(model, mainWin.log, PATH_COL_IDX)#define key column
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
-    #view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)#change to F8
     model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
+    mainWin.BindToolbarEvent(50, evtHandler.selAllImpl)
+    mainWin.BindToolbarEvent(60, evtHandler.revSortImpl)
+    mainWin.BindToolbarEvent(70, evtHandler.itemOpenDir)
+    mainWin.BindToolbarEvent(80, evtHandler.itemOpen)
+    mainWin.BindToolbarEvent(90, evtHandler.itemSetTag)
+    mainWin.BindToolbarEvent(100, evtHandler.autoTag)
+    mainWin.BindToolbarEvent(110, evtHandler.setNewTag)
+    mainWin.BindToolbarEvent(120, evtHandler.setDelTag)
+    #view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)#change to F8
             
     model.refreshAll()
     mainWin.log('show me done')
