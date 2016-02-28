@@ -827,7 +827,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._delRow(self.model.delPathByEvt, 'rmv path done')
+            self._delRow(self.model.delPathByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -857,7 +857,7 @@ class EventHandler(object):
         ^ --------
         '''        
         try:
-            self._delRow(self.model.delItemByEvt, 'rmv item done')
+            self._delRow(self.model.delItemByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -868,7 +868,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._delRow(self.model.autoTagEvt, 'auto tag done')
+            self._delRow(self.model.autoTagEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -913,7 +913,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
         
-    def _delRow(self, delImpl, msg):
+    def _delRow(self, delImpl):
         fileAttr = []
         list = self.sender
         selectedRow = list.GetFirstSelected()
@@ -930,6 +930,9 @@ class EventHandler(object):
         self.model.saveItem()
         #self.winlog(msg)
     
+    def _itemSetOneTagImpl(self, newTasg, rev=False):
+        pass
+        
     def _itemSetOneTag(self, newTag, rev=False):
         list = self.sender
         selectedRow = list.GetFirstSelected()
