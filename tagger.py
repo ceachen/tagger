@@ -790,8 +790,7 @@ class Model(object):
             
 #--------BEGIN Controllor
 class EventHandler(object):
-    def __init__(self, sender, model, winlog, modelKeyColIdx=0):
-        self.sender = sender
+    def __init__(self, model, winlog, modelKeyColIdx=0):
         self.model = model
         self.winlog = winlog
         self.modelKeyColIdx = modelKeyColIdx
@@ -840,7 +839,8 @@ class EventHandler(object):
         '''
         try:
             os.startfile(\
-                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX])
+                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
+                self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][PATH_COL_IDX])
             #self.winlog('open item done')
         except Exception,e:
             self.winlog(str(e), True)
@@ -849,7 +849,8 @@ class EventHandler(object):
         try:
             os.startfile(\
                 os.path.dirname(\
-                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][PATH_COL_IDX]))
+                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
+                self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][PATH_COL_IDX]))
             #self.winlog('open item dir done')
         except Exception,e:
             self.winlog(str(e), True)
@@ -881,7 +882,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._dealRows(self.model.delPathByEvt)
+            self._dealRows(self.model.refreshObj[PATH_CONFIG_F_NAME], self.model.delPathByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -911,7 +912,7 @@ class EventHandler(object):
         ^ --------
         '''        
         try:
-            self._dealRows(self.model.delItemByEvt)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.delItemByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -922,7 +923,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._dealRows(self.model.autoTagEvt)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.autoTagEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -944,7 +945,7 @@ class EventHandler(object):
                     self._itemSetOneTag(newTag)
                 '''
                 newTags = [x.strip() for x in _dlg.GetValue().split(';')]
-                self._dealRows(self.model._itemSetTagImpl, newTags)
+                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, newTags)
                     
                 #self.model.refreshAll()
                 #self.model.saveItem()
@@ -963,7 +964,8 @@ class EventHandler(object):
         try:
             if not self.oldval == event.Text:
                 #event.Allow()
-                self.model.itemdata[self.sender.GetItemData(self.sender.GetFirstSelected())][event.Column] = event.Text#refresh automatically
+                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
+                    self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][event.Column] = event.Text#refresh automatically
                 self.model.saveItem()
                 #self.winlog('edit cell done')
             del self.oldval
@@ -971,9 +973,8 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
         
-    def _dealRows(self, delImpl, *args):
+    def _dealRows(self, list, delImpl, *args):
         fileAttr = []
-        list = self.sender
         selectedRow = list.GetFirstSelected()
         while not -1 == selectedRow:
             selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
@@ -1009,7 +1010,7 @@ class EventHandler(object):
         
     def listBeginEdit(self, event):#disable edit: path, tags
         try:
-            if READONLY == self.sender.columns[event.Column][3]:
+            if READONLY == self.model.refreshObj[ITEM_CONFIG_F_NAME].columns[event.Column][3]:
                 event.Veto()#Readonly
             else:
                 self.oldval = event.Text
@@ -1025,8 +1026,8 @@ class EventHandler(object):
         _dlg.Destroy()
         
     def selAllImpl(self):
-        for i in range(self.sender.GetItemCount()):
-            self.sender.Select(i)
+        for i in range(self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemCount()):
+            self.model.refreshObj[ITEM_CONFIG_F_NAME].Select(i)
         
     def pathListKeyDown(self, event):
         if wx.WXK_DELETE == event.GetKeyCode():
@@ -1037,11 +1038,11 @@ class EventHandler(object):
             self.clrImpl()
             
     def revSortImpl(self):
-        self.sender.onRevSort(PATH_COL_IDX)
+        self.model.refreshObj[ITEM_CONFIG_F_NAME].onRevSort(PATH_COL_IDX)
     def setNewTag(self):
         try:
             #self._itemSetOneTag(SYS_TAG_NEW, True)
-            self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
             #self.model.refreshAll()
             #self.model.saveItem()
             #self.winlog('set tag done')
@@ -1051,7 +1052,7 @@ class EventHandler(object):
     def setDelTag(self):
         try:
             #self._itemSetOneTag(SYS_TAG_DEL, True)
-            self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
             #self.model.refreshAll()
             #self.model.saveItem()
             #self.winlog('set tag done')
@@ -1087,7 +1088,7 @@ class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, winlog):
         wx.FileDropTarget.__init__(self)  
         window.SetDropTarget(self)
-        self.dropFile = EventHandler(None, model, winlog).pathAdd
+        self.dropFile = EventHandler(model, winlog).pathAdd
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
 #--------BEGIN UI
@@ -1095,15 +1096,15 @@ def makeMainWin():
     mainWin = MainWin()
     model = Model()
     mainWin.setToolbarDefaultFilter(model.defaultFilters)
-    mainWin.registerSearcher(EventHandler(None, model, mainWin.log).formularFilter)
+    mainWin.registerSearcher(EventHandler(model, mainWin.log).formularFilter)
     
     view1 = SplitView(mainWin.getViewPort())
     
-    view2 = HtmlView(view1.p1, EventHandler(None, model, mainWin.log).tagFilter)
+    view2 = HtmlView(view1.p1, EventHandler(model, mainWin.log).tagFilter)
     model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
     
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
-    evtHandler = EventHandler(view3, model, mainWin.log)
+    evtHandler = EventHandler(model, mainWin.log)
     view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)#must set for readonly
     #view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
@@ -1111,7 +1112,7 @@ def makeMainWin():
     model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
     
     view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(view4, model, mainWin.log, PATH_COL_IDX)#define key column
+    evtHandler = EventHandler(model, mainWin.log, PATH_COL_IDX)#define key column
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler.listBeginEdit)
     view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)

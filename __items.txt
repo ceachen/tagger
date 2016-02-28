@@ -1,3 +1,3 @@
 name;200;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,comment;260;left;
-qqq,D:\test\a\qqq.txt,2016-02-28,[NEW],
-qqq,D:\test\a - 副本\qqq.txt,2016-02-28,[NEW],
+ccccc,D:\test\a - 副本\qqq.txt,2016-02-28,[DEL];[NEW],x
+qqq,D:\test\a\qqq.txt,2016-02-28,,cadsf
