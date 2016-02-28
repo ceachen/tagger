@@ -42,7 +42,7 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 1. 【项目编辑】在右边列表中可以直接编辑某些单元格<br>
 在_item.txt中第一行定义列头，如果某一列为ro，则不能编辑<br>
 ★小贴士★ 如果文件名含义不直观，可以修改列表项的第一列（name列）为容易记忆和查找的字符串<br>
-★小贴士★ 由于本工具不支持批量修改属性，你可以将items.txt文件重命名为items.csv，用Excel编辑后，再重命名为items.txt
+★小贴士★ 如果觉得本工具批量修改属性不方便，可以将items.txt文件重命名为items.csv，用Excel编辑后，再重命名为items.txt
 <hr>
 1. 【tag过滤】左上角显示的是所有的标签和包含此标签的列表项数目<br>
 点击某个标签可以按标签进行过滤
@@ -65,6 +65,7 @@ tagger运行在python 2.7 + wxpython 3.0环境中
 （需要修改tagger.py文件中的TAG_COLOR_AND_SIZE设置）
 <hr>
 1. 【使用提示】以上的操作对应的按键，在tagger窗口的标题中可以看到
+1. 【自动备份】每次运行时，在第一次保存前，均会生成一个带时间戳的备份文件items.txt
 
 * 如果使用notepad创建或编辑配置文件，请以ANSI编码方式保存
 <hr>

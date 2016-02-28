@@ -21,6 +21,7 @@ import re
 import datetime
 import unittest
 import locale
+import shutil
 
 #--------BEGIG default config
 #USER DEFINE
@@ -52,6 +53,11 @@ class ui_utils(object):
     @staticmethod
     def today():
         return datetime.datetime.now().strftime('%Y-%m-%d')
+    @staticmethod
+    def bckfile(filename):
+        itemfileinfo = os.path.splitext(filename)
+        bckfile = '%s_%s%s'%(itemfileinfo[0], datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'), itemfileinfo[1])
+        shutil.copy(filename, bckfile)
     @staticmethod
     def _log_init():
         wx.Log.SetActiveTarget(wx.LogStderr())
@@ -376,6 +382,7 @@ class TestSearchCtrl(wx.SearchCtrl):
 #========                   
                    
 #--------BEGIN Model_Serializable
+backuped = False
 class io(object):
     @staticmethod
     def load(fname=PATH_CONFIG_F_NAME):
@@ -394,6 +401,12 @@ class io(object):
             _dlg.Destroy()
             if not wx.ID_YES == ret:
                 return
+        
+        global backuped
+        if not backuped:
+            ui_utils.log('backup items')
+            ui_utils.bckfile(ITEM_CONFIG_F_NAME)
+            backuped = True
         
         file = codecs.open(fname, 'w', 'gb2312')
         for l in lst:
@@ -672,10 +685,12 @@ class Model(object):
                         self.dowithOneTag4OneItem(rowKey, newTag[1:], False)#rmv tag
     def itemMultiSetEvt(self, rows, *args):#[(file,key),], cell value
         setNewValue = args[0]#row[col] = u'xxx'
+        #print setNewValue
         for aRow in rows:
             row = self.itemdata[aRow[1]]
             #self.itemdata[aRow[1]][colIdx] = newVal
             exec(setNewValue)#use exec, not eval
+            #print 'done'
     
     def _addPathOnly(self, newpath):#called by addPath. not care items
         if not os.path.sep == newpath[-1]:
