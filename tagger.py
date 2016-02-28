@@ -334,7 +334,7 @@ class io(object):
     def save(lst, fname, comfirm=False):
         if comfirm:
             _dlg = wx.MessageDialog(None, 'Some Important CHANGEs made, SAVE it or not?', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
-            ret = _dlg.ShowModal():
+            ret = _dlg.ShowModal()
             _dlg.Destroy()
             if not wx.ID_YES == ret:
                 return
