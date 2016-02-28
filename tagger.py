@@ -331,7 +331,14 @@ class io(object):
             ui_utils.log('load %s, %d lines' % (fname, len(lines)))
         return lines
     @staticmethod
-    def save(lst, fname):
+    def save(lst, fname, comfirm=False):
+        if comfirm:
+            _dlg = wx.MessageDialog(None, 'Some Important CHANGEs made, SAVE it or not?', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+            ret = _dlg.ShowModal():
+            _dlg.Destroy()
+            if not wx.ID_YES == ret:
+                return
+        
         file = codecs.open(fname, 'w', 'gb2312')
         for l in lst:
             try:
@@ -471,10 +478,10 @@ class Model(object):
                 #ui_utils.warn('rmv tag fail, %s not set for %d'%(newTag, rowKey))
                 pass
                 
-    def saveItem(self):
-        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME)
-    def savePath(self):
-        io.save(self._tostrsPath(), PATH_CONFIG_F_NAME)
+    def saveItem(self, comfirm=False):
+        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME, comfirm)
+    def savePath(self, comfirm=False):
+        io.save(self._tostrsPath(), PATH_CONFIG_F_NAME, comfirm)
     def _tostrsItem(self):
         ret = [self.itemColumnStr]
         for i in self.itemdata.values():
