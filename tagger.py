@@ -732,7 +732,20 @@ class Model(object):
                     dispitem[id] = self.displayItemData[id]
             self.displayItemData = dispitem
         
-            
+    def _itemSetTagImpl(self, rows, *args):#tag list, rev
+        for newTag in args[0]:
+            for aRow in rows:
+                rowKey = aRow[1]
+                if 2 == len(args) and args[1]:#Revert Tag
+                    _tagSet = self.hasTag(rowKey, newTag)
+                    if _tagSet: self.rmvTag4Item(rowKey, newTag)
+                    else: self.addTag4Item(rowKey, newTag)
+                else:
+                    if '+' == newTag[0]:
+                        self.addTag4Item(rowKey, newTag[1:])
+                    elif '-' == newTag[0]:
+                        self.rmvTag4Item(rowKey, newTag[1:])
+        
             
 #--------BEGIN Controllor
 class EventHandler(object):
@@ -827,7 +840,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._delRow(self.model.delPathByEvt)
+            self._dealRows(self.model.delPathByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -857,7 +870,7 @@ class EventHandler(object):
         ^ --------
         '''        
         try:
-            self._delRow(self.model.delItemByEvt)
+            self._dealRows(self.model.delItemByEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -868,7 +881,7 @@ class EventHandler(object):
         ^ --------
         '''
         try:
-            self._delRow(self.model.autoTagEvt)
+            self._dealRows(self.model.autoTagEvt)
         except Exception, e:
             self.winlog(str(e), True)
             raise e
@@ -884,12 +897,16 @@ class EventHandler(object):
             if _dlg.ShowModal() == wx.ID_OK:
                 #ui_utils.log(_dlg.GetValue())
                 
+                '''
                 for newTag in _dlg.GetValue().split(';'):
                     newTag = newTag.strip()
                     self._itemSetOneTag(newTag)
+                '''
+                newTags = [x.strip() for x in _dlg.GetValue().split(';')]
+                self._dealRows(self.model._itemSetTagImpl, newTags)
                     
-                self.model.refreshAll()
-                self.model.saveItem()
+                #self.model.refreshAll()
+                #self.model.saveItem()
                 #self.winlog('set tag done')
 
             _dlg.Destroy()
@@ -913,7 +930,7 @@ class EventHandler(object):
             self.winlog(str(e), True)
             raise e
         
-    def _delRow(self, delImpl):
+    def _dealRows(self, delImpl, *args):
         fileAttr = []
         list = self.sender
         selectedRow = list.GetFirstSelected()
@@ -923,16 +940,14 @@ class EventHandler(object):
             fileAttr.append((selKey, selIdx))#Key(Path), ItemData not row Index
             selectedRow = list.GetNextSelected(selectedRow)
             
-        delImpl(fileAttr)
+        delImpl(fileAttr, *args)
         
         self.model.refreshAll()
         self.model.savePath()
         self.model.saveItem()
         #self.winlog(msg)
     
-    def _itemSetOneTagImpl(self, newTasg, rev=False):
-        pass
-        
+    '''
     def _itemSetOneTag(self, newTag, rev=False):
         list = self.sender
         selectedRow = list.GetFirstSelected()
@@ -949,6 +964,7 @@ class EventHandler(object):
                 else: self.model.addTag4Item(rowKey, newTag)
                 
             selectedRow = list.GetNextSelected(selectedRow)
+    '''
         
     def listBeginEdit(self, event):#disable edit: path, tags
         try:
@@ -991,18 +1007,20 @@ class EventHandler(object):
             
         elif wx.WXK_F11 == event.GetKeyCode():
             try:
-                self._itemSetOneTag(SYS_TAG_NEW, True)
-                self.model.refreshAll()
-                self.model.saveItem()
+                #self._itemSetOneTag(SYS_TAG_NEW, True)
+                self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_NEW,), True)
+                #self.model.refreshAll()
+                #self.model.saveItem()
                 #self.winlog('set tag done')
             except Exception, e:
                 self.winlog(str(e), True)
                 raise e
         elif wx.WXK_F12 == event.GetKeyCode():
             try:
-                self._itemSetOneTag(SYS_TAG_DEL, True)
-                self.model.refreshAll()
-                self.model.saveItem()
+                #self._itemSetOneTag(SYS_TAG_DEL, True)
+                self._dealRows(self.model._itemSetTagImpl, (SYS_TAG_DEL,), True)
+                #self.model.refreshAll()
+                #self.model.saveItem()
                 #self.winlog('set tag done')
             except Exception, e:
                 self.winlog(str(e), True)
