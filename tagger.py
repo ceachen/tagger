@@ -45,6 +45,8 @@ ALL_TAG ='ALL'
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
 
+ENCODING = 'gbk'
+
 HELP = 'F2:SyncPath; F5:SelectAll, F6:SortPathRev, F7:OpenUpperDir, F8:Open; F9:SetTag, F10:AutoTag, F11:NEW, F12:DEL'
 
 #--------BEGIN ui utils
@@ -388,7 +390,7 @@ class io(object):
     def load(fname=PATH_CONFIG_F_NAME):
         lines = []
         if os.path.isfile(fname):
-            file = codecs.open(fname, 'r', 'gb2312')
+            file = codecs.open(fname, 'r', ENCODING)
             lines = [x.strip() for x in file.readlines()]
             file.close()
             ui_utils.log('load %s, %d lines' % (fname, len(lines)))
@@ -408,7 +410,7 @@ class io(object):
             ui_utils.bckfile(ITEM_CONFIG_F_NAME)
             backuped = True
         
-        file = codecs.open(fname, 'w', 'gb2312')
+        file = codecs.open(fname, 'w', ENCODING)
         for l in lst:
             try:
                 file.write('%s\n'%l)
@@ -889,12 +891,14 @@ class EventHandler(object):
     def setNewTag(self):
         try:
             self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_NEW,), True)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_DEL,))
         except Exception, e:
             self.winlog(str(e), True)
             raise e
     def setDelTag(self):
         try:
             self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_DEL,), True)
+            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_NEW,))
         except Exception, e:
             self.winlog(str(e), True)
             raise e

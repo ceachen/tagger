@@ -1,4 +1,7 @@
-tagger是一个基于标签的文档管理工具，类似[tagspaces](http://www.appinn.com/tagspaces/)、[TaggedFrog](http://www.appinn.com/taggedfrog/)、[Tabbles](http://tabbles.net/)等
+各位标签控、整理控们是不是都在为自己电脑上的大量电影、音乐、文档而犯愁啊：不用的时候占空间，要用的时候找不到。<br>
+标签是一种比目录更先进的管理方式。tagger是一款基于标签的文档管理工具，类似[tagspaces](http://www.appinn.com/tagspaces/)、[TaggedFrog](http://www.appinn.com/taggedfrog/)、[Tabbles](http://tabbles.net/)等。<br>
+由于tagger是用脚本语言Python开发的，只要读懂最基本的Python语法，很容易对tagger进行订制和扩展。
+目前实测下来，管理1000左右的文档性能是比较好的。
 
 # 依赖
 tagger运行在python 2.7 + wxpython 3.0环境中
