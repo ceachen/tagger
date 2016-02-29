@@ -363,8 +363,8 @@ class TestSearchCtrl(wx.SearchCtrl):
         text = self.GetValue()
         
         self.doSearch(text)
-        
-        self.searches.append(text)
+        if not text in self.searches:
+            self.searches.append(text)
         if len(self.searches) > self.maxSearches:
             del self.searches[0]
         self.SetMenu(self.MakeMenu())
@@ -379,6 +379,8 @@ class TestSearchCtrl(wx.SearchCtrl):
         item = menu.Append(-1, "Recent Searches")
         item.Enable(False)
         for idx, txt in enumerate(self.searches):
+            if '' == txt.strip():
+                continue
             menu.Append(1+idx, txt)
         return menu        
 #========                   
