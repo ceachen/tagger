@@ -47,7 +47,7 @@ PATH_COL_IDX = 1
 
 ENCODING = 'gbk'
 
-HELP = 'F2:SyncPath; F5:SelectAll, F6:SortPathRev, F7:OpenUpperDir, F8:Open; F9:SetTag, F10:AutoTag, F11:NEW, F12:DEL'
+HELP = 'F2:SyncPath, F3:Clear, F4:SetColumn; F5:SelectAll, F6:SortPathRev, F7:OpenUpperDir, F8:Open; F9:SetTag, F10:AutoTag, F11:NEW, F12:DEL'
 
 #--------BEGIN ui utils
 class ui_utils(object):
