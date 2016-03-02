@@ -946,7 +946,8 @@ class EventHandler(object):
             if not self.oldval == event.Text:
                 #event.Allow()
                 self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
-                    self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][event.Column] = event.Text#refresh automatically
+                    self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][event.Column] = event.Text.replace(',',';')#refresh automatically
+                    #fix csv bug when input ,
                 self.model.saveItem()
                 #self.winlog('edit cell done')
             del self.oldval
