@@ -639,6 +639,12 @@ class Model(object):
         itemTags = itemTagStr.split(';')
         if isAdd:
             if not newTag in itemTags:
+                #delete all tags when set DEL
+                if SYS_TAG_DEL == newTag:
+                    for otherTag in itemTags:
+                        self._decTag(otherTag)
+                    itemInAll[TAG_COL_IDX] = ''
+                    
                 if len(itemInAll[TAG_COL_IDX]) > 0:
                     itemTags.append(newTag)
                     itemInAll[TAG_COL_IDX] = ';'.join(sorted(itemTags))
@@ -900,7 +906,7 @@ class EventHandler(object):
     def setDelTag(self):
         try:
             self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_DEL,), True)
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_NEW,))
+            #self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_NEW,))
         except Exception, e:
             self.winlog(str(e), True)
             raise e
