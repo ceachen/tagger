@@ -499,7 +499,7 @@ class Model(object):
         self._buildTagsHtmlStr()
     def _buildTagsHtmlStr(self):
         _tags = []
-        for aTag, aCount in self.tagdata.items():
+        for aTag, aCount in sorted(self.tagdata.items()):#tag sort
             _tagHtmlStr = self.tagTemplate%('%s:%d'%(aTag, aCount))
             if aTag in TAG_COLOR_AND_SIZE.keys():
                 _tagHtmlStr = self.tagFontTemplate%(TAG_COLOR_AND_SIZE[aTag][0], TAG_COLOR_AND_SIZE[aTag][1], TAG_COLOR_AND_SIZE[aTag][2], \
