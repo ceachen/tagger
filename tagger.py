@@ -365,7 +365,7 @@ class TestSearchCtrl(wx.SearchCtrl):
         
         self.doSearch(text)
         if not text in self.searches:
-            self.searches.append(text)
+            self.searches.insert(0, text)#recent search in the front
         if len(self.searches) > self.maxSearches:
             del self.searches[0]
         self.SetMenu(self.MakeMenu())
