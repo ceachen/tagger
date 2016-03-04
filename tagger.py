@@ -28,7 +28,8 @@ import shutil
 ADD_ITEM_RECURSION = False
 SYS_TAG_NEW = '[NEW]'
 SYS_TAG_DEL = '[DEL]'
-TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'),}
+SYS_TAG_RMV = '[RMV]'
+TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'), SYS_TAG_RMV:('green', '+5', 'I'),}
 
 #SYSTEM DEFINE
 PATH_CONFIG_F_NAME = '__pathes.txt'
@@ -768,7 +769,7 @@ class Model(object):
         modified = False
         pathlist = [p[0] for p in self.pathdata.values()]#all pathes
         for k, i in self.itemdata.items():
-            if not SYS_TAG_DEL in i[TAG_COL_IDX].split(';'):
+            if not SYS_TAG_RMV in i[TAG_COL_IDX].split(';'):
                 _inPath = False
                 for p in pathlist:#do with items not under path
                     if p in i[PATH_COL_IDX]:
@@ -776,10 +777,10 @@ class Model(object):
                         break
                         
                 if not _inPath:
-                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
+                    self.dowithOneTag4OneItem(k, SYS_TAG_RMV, True)#soft delete item
                     modified = True
                 elif not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
-                    self.dowithOneTag4OneItem(k, SYS_TAG_DEL, True)#soft delete item
+                    self.dowithOneTag4OneItem(k, SYS_TAG_RMV, True)#soft delete item
                     modified = True
                     
         for p in pathlist:
