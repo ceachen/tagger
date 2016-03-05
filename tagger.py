@@ -319,24 +319,52 @@ class ListView(wx.ListCtrl,
             i += 1
     
     def refreshData(self, listItemDict):
+        '''
         #for select statue after refresh
         selIdxes = []
         for i in range(self.GetItemCount()):
             if self.IsSelected(i):
                 selIdxes.append(self.GetItemData(i))
-        
+        '''
         self.itemDataMap = listItemDict
         
+        '''
         self.DeleteAllItems()
         for key, data in listItemDict.items():
             index = self.InsertStringItem(sys.maxint, data[0])
             for i in range(1, len(data)):
                 self.SetStringItem(index, i, data[i])
             self.SetItemData(index, key)
+        '''
+        rowIdx = self.GetItemCount() - 1
+        while rowIdx >= 0:
+            rowData = self.GetItemData(rowIdx)
+            if not rowData in listItemDict.keys():
+                self.DeleteItem(rowIdx)
+            else:
+                for colIdx in range(0, len(listItemDict[rowData])):
+                    if not listItemDict[rowData][colIdx] == self.GetItem(rowIdx, colIdx).GetText():
+                        self.SetStringItem(rowIdx, colIdx, listItemDict[rowData][colIdx])
+                        
+            rowIdx -= 1
             
+        for id in listItemDict.keys():
+            found = False
+            for rowIdx in range(0, self.GetItemCount()):
+                if self.GetItemData(rowIdx) == id:
+                    found = True
+                    break
+            if not found:
+                index = self.InsertStringItem(sys.maxint, listItemDict[id][0])
+                for i in range(1, len(listItemDict[id])):
+                    self.SetStringItem(index, i, listItemDict[id][i])
+                self.SetItemData(index, id)
+            '''
             #for select statue after refresh
             if key in selIdxes:
                 self.Select(index)
+            '''
+            
         ui_utils.addFullExpandChildComponent(self.Parent, self)
     
     def readonlyCell(self, event):#disable edit: path, tags
