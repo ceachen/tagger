@@ -1,2 +1,2 @@
-c:\python27\python tagger.py
+c:\python27\python tagger_new.py
 pause

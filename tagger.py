@@ -113,8 +113,6 @@ class ui_utils(object):
             for file in os.listdir(rootpath):
                 ret.append((os.path.join(rootpath, file), file))
         return ret
-    
-        
         
 class MainWin(wx.App):
     def __init__(self):
@@ -371,7 +369,7 @@ class ListView(wx.ListCtrl,
         event.Veto()#Readonly
 
 class TestSearchCtrl(wx.SearchCtrl):
-    maxSearches = 50
+    maxSearches = 20
     
     def __init__(self, parent, id=-1, value="",
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0,
@@ -395,7 +393,7 @@ class TestSearchCtrl(wx.SearchCtrl):
         if not text in self.searches:
             self.searches.insert(0, text)#recent search in the front
         if len(self.searches) > self.maxSearches:
-            del self.searches[0]
+            del self.searches[-1]#fix a bug: delete older filter
         self.SetMenu(self.MakeMenu())
         self.SetValue("")
         
@@ -1028,7 +1026,6 @@ class EventHandler(object):
             self.setDelTag()
         elif wx.WXK_F10 == event.GetKeyCode():
             self.autoTag()
-            
         
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self, window, model, winlog):
