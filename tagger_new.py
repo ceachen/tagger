@@ -260,6 +260,7 @@ class ListView(wx.ListCtrl,
     def modRow(self, rowId, colId, newVal, setView=False):
         dataId = self.GetItemData(rowId)
         self.allItemDataMap[dataId][colId] = newVal
+        
         #self.itemDataMap[dataId][colId] = newVal
         if setView:
             self.SetStringItem(rowId, colId, newVal)
@@ -518,16 +519,16 @@ def makeMainWin():
         index = view3.InsertStringItem(sys.maxint, data[0])
         view3.SetItemData(index, key)
         
+    ui_utils.addFullExpandChildComponent(view2)
+    ui_utils.addFullExpandChildComponent(view3)
+
     view3.delRow(2)
     id = view3.hideRow(4)
     view3.showRow(id)
     view3.addRow(['mlkcadf'])
-    view3.modRow(id, 0, 'hello world')
+    view3.modRow(4, 0, 'hello world', True)
     #view3.clear()
     
-    
-    ui_utils.addFullExpandChildComponent(view2)
-    ui_utils.addFullExpandChildComponent(view3)
 
     #END EVENT STUB
 
