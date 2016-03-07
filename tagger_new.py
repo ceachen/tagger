@@ -229,7 +229,10 @@ class ListView(wx.ListCtrl,
         event.Veto()#Readonly
         
     def addRow(self, rowInfo):
-        id = max(self.allItemDataMap.keys()) + 1
+        if len(self.allItemDataMap) == 0:
+            id = 1
+        else:
+            id = max(self.allItemDataMap.keys()) + 1
         self.allItemDataMap[id] = rowInfo
         self.itemDataMap[id] = rowInfo
         index = self.InsertStringItem(sys.maxint, rowInfo[0])
@@ -478,6 +481,160 @@ class FileDropTarget(wx.FileDropTarget):
     def OnDropFiles(self, x, y, filenames):
         self.dropFile(x, y, filenames)            
         
+class Model(object):
+    def __init__(self):
+        #use remote file to save item data
+        lines = io.load(ITEM_CONFIG_LINK)
+        if 1 <= len(lines):
+            global ITEM_CONFIG_F_NAME
+            ITEM_CONFIG_F_NAME = lines[0]
+            
+        self.tagdata = {}#{tag1:count,}
+        self.tagHtmlStr = None
+        self.tagHeaderStr = None
+        self.tagFooterStr = None
+        self.tagTemplate = '<tag>[%s]</tag>'
+        self.tagBodyTemplate = '<data>%s</data>'
+        self.tagFontTemplate = '<font color="%s"><font size="%s"><%s>%s</%s></font></font>'
+
+        self.pathdata = {}#{1:(path1,),}
+        
+        self.itemdata = {}#{1:(col1,col2,col3,),}
+        #all Items to be saved
+        self.itemcolumns = []#[[col1,width,align,ro,],]
+        self.itemColumnStr = None
+        
+        self.ext = {}
+        
+        self.blacklist = []
+        
+        self.defaultFilters = []
+        
+        self.filterTag = ALL_TAG
+        self.filterStrs = []
+        self.filterLogTemplate = 'count: {%d}, tag: {%s}, formular: {%s}'
+        
+        #self.tagSizeTemplate = '<font size=%s>%s</font>'
+        #self.tagColorTemplate = '<font color=%s>%s</font>'
+        #self.tagColorDefine = {'sys-%s':'gray', }
+        #self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
+        
+        self._initPath()
+        self._initItemsAndColumn()
+        self._initTagHtml()
+        self._initExt()
+        self._initBlacklist()
+        self._initFilters()
+        
+        self._buildTagsHtmlStr()
+    def _initPath(self):
+        idx = 0
+        for line in io.load(PATH_CONFIG_F_NAME):
+            self.pathdata[idx] = (line.strip(), )
+            idx += 1
+    def _initBlacklist(self):
+        self.blacklist = io.load(BLACK_LIST_F_NAME)
+    def _initExt(self):
+        for line in io.load(EXT_CONFIG_F_NAME):
+            line = line.strip()
+            _ss = line.split(':')
+            _exts = _ss[1].split(';')
+            for _ext in _exts:
+                self.ext[_ext] = _ss[0]
+    def _initFilters(self):
+        self.defaultFilters = io.load(FILTER_CONFIG_F_NAME)
+    def _initTagHtml(self):
+        self.tagHtmlStr = '\n'.join(io.load(TAG_CONFIG_F_NAME))
+        
+        ss = re.split(self.tagBodyTemplate%'(.|\n)+', self.tagHtmlStr, flags=re.IGNORECASE)#ignore \n
+        self.tagHeaderStr = ss[0]
+        self.tagFooterStr = ss[2]
+        
+        #content inited by items
+        self._buildTagsHtmlStr()
+    def _buildTagsHtmlStr(self):
+        _tags = []
+        for aTag, aCount in sorted(self.tagdata.items()):#tag sort
+            _tagHtmlStr = self.tagTemplate%('%s:%d'%(aTag, aCount))
+            if aTag in TAG_COLOR_AND_SIZE.keys():
+                _tagHtmlStr = self.tagFontTemplate%(TAG_COLOR_AND_SIZE[aTag][0], TAG_COLOR_AND_SIZE[aTag][1], TAG_COLOR_AND_SIZE[aTag][2], \
+                    _tagHtmlStr, TAG_COLOR_AND_SIZE[aTag][2])
+            _tags.append(_tagHtmlStr)
+        tagStr = '\n'.join(_tags)
+        
+        self.tagHtmlStr = '%s%s%s' % (self.tagHeaderStr, self.tagBodyTemplate%tagStr, self.tagFooterStr % len(self.itemdata))
+    def _initItemsAndColumn(self):
+        lines = io.load(ITEM_CONFIG_F_NAME)
+        
+        self.itemColumnStr = lines[0]
+        self._initColumns(lines[0])
+        
+        idx = 0
+        for line in lines[1:]:
+            #empty line
+            if len(line.strip()) < 2:
+                continue
+            linestr = line.split(',')
+            
+            self._initOneItemRow(idx, linestr)#fix bug when data field count less than column count
+            
+            tagstr = linestr[TAG_COL_IDX]#tag
+            if len(tagstr) > 0:
+                for aTag in tagstr.split(';'):
+                    self._incTag(aTag)
+            idx += 1
+            
+    def _initOneItemRow(self, idx, values):
+        self.itemdata[idx] = values
+        for i in range(len(values), len(self.itemcolumns)):
+            self.itemdata[idx].append('')
+        
+    def _initColumns(self, colStr):
+        columns = []
+        for col in colStr.split(','):
+            attrs = col.split(';')
+            column = []
+            column.append(attrs[0])#name
+            column.append(int(attrs[1]))#width
+            if 'left' in attrs[2].lower():
+                column.append(wx.LIST_FORMAT_LEFT)
+            else:
+                column.append(wx.LIST_FORMAT_RIGHT)#align
+            column.append(attrs[3])#ro
+            columns.append(column)
+        self.itemcolumns = columns
+        
+        
+    def _incTag(self, aTag):
+        if '' == aTag:
+            #ui_utils.warn('empty tag inc')
+            return
+        if aTag in self.tagdata.keys():
+            self.tagdata[aTag] += 1
+        else:
+            self.tagdata[aTag] = 1
+    def _decTag(self, aTag):
+        if '' == aTag:
+            #ui_utils.warn('empty tag dec')
+            return
+        if aTag in self.tagdata.keys():
+            self.tagdata[aTag] -= 1
+            if 0 == self.tagdata[aTag]:
+                self.tagdata.pop(aTag)
+        else:
+            #ui_utils.warn('dec tag when not exists')
+            pass
+    def _newid(self, dict):
+        if {} == dict:
+            return 1
+        else:
+            return max(dict.keys()) + 1
+    def _hasTag(self, rowKey, aTag):
+        itemInAll = self.itemdata[rowKey]
+        itemTagStr = itemInAll[TAG_COL_IDX]
+        itemTags = itemTagStr.split(';')
+        return aTag in itemTags
+        
 #BEGIN EVENT STUB
 class EvtStub(object):
     def __init__(self, sender):
@@ -527,11 +684,16 @@ class EventHandler(object):
 def makeMainWin():
     mainWin = MainWin()
     
-    #BEGIN EVENT STUB
+    model = Model()
+    mainWin.setToolbarDefaultFilter(model.defaultFilters)
+        
     view1 = SplitView(mainWin.getViewPort())
     view2 = HtmlView(view1.p1)
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))    
+    view4 = ListView(view1.p3, model.itemcolumns)
     
+    #BEGIN EVENT STUB
+    '''
     mainWin.registerSearcher(EvtStub('searcher').handler)
     for evtId in (20,30,40,50,60,70,80,90,100,110,120):
         mainWin.BindToolbarEvent(evtId, EvtStub(str(evtId)).handler)
@@ -553,8 +715,6 @@ def makeMainWin():
         index = view3.InsertStringItem(sys.maxint, data[0])
         view3.SetItemData(index, key)
         
-    ui_utils.addFullExpandChildComponent(view2)
-    ui_utils.addFullExpandChildComponent(view3)
 
     view3.delRow(2)
     id = view3.hideRow(4)
@@ -575,9 +735,19 @@ def makeMainWin():
     view3.modRowByExec(2, 'row[0] = row[0]*2')
     print view3.getFirstSelectedText(0)
     
-
+    '''
     #END EVENT STUB
 
+    view2.SetPage(model.tagHtmlStr)
+    for key, val in model.itemdata.items():
+        view4.addRow(val)
+    for key, val in model.pathdata.items():
+        view3.addRow(val)
+    
+    ui_utils.addFullExpandChildComponent(view2)
+    ui_utils.addFullExpandChildComponent(view3)
+    ui_utils.addFullExpandChildComponent(view4)
+    
     mainWin.log('show me done')
     mainWin.MainLoop()
 
