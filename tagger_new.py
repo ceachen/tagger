@@ -22,6 +22,7 @@ import datetime
 import unittest
 import locale
 import shutil
+import copy
 
 #USER DEFINE
 ADD_ITEM_RECURSION = False
@@ -242,6 +243,25 @@ class ListView(wx.ListCtrl,
         for i in range(1, len(rowInfo)):
             self.SetStringItem(index, i, rowInfo[i])
         self.SetItemData(index, dataId)
+        
+    def modRow(self, rowId, colId, newVal, setView=False):
+        dataId = self.GetItemData(rowId)
+        self.allItemDataMap[dataId][colId] = newVal
+        
+        #self.itemDataMap[dataId][colId] = newVal
+        if setView:
+            self.SetStringItem(rowId, colId, newVal)
+    def modRowByExec(self, rowId, execStr):
+        dataId = self.GetItemData(rowId)
+        row = self.allItemDataMap[dataId]
+        oldRowData = copy.copy(row)
+        
+        exec(execStr)
+        for i in range(len(oldRowData)):
+            if not oldRowData[i] == row[i]:
+                self.SetStringItem(rowId, i, row[i])
+                return
+                
     def delRow(self, rowId):
         dataId = self.GetItemData(rowId)
         self.allItemDataMap.pop(dataId)
@@ -256,14 +276,28 @@ class ListView(wx.ListCtrl,
         self.itemDataMap = {}
         self.allItemDataMap = {}
         self.ClearAll()
+    def delSelectedRows(self):
+        rowId = self.GetFirstSelected()
+        while not -1 == rowId:
+            self.delRow(rowId)            
+            rowId = self.GetFirstSelected()
         
-    def modRow(self, rowId, colId, newVal, setView=False):
-        dataId = self.GetItemData(rowId)
-        self.allItemDataMap[dataId][colId] = newVal
+    def getText(self, rowId, colId):
+        return self.GetItem(rowId, colId).GetText()
+    def getFirstSelectedText(self, colId):
+        return self.getText(self.GetFirstSelected(), colId)
+    def selectAll(self):
+        for i in range(self.GetItemCount()):
+            self.Select(i)
+    def getSelectedRowId(self):
+        ret = []
+        rowId = self.GetFirstSelected()
+        while not -1 == rowId:
+            ret.append(rowId)            
+            rowId = self.GetNextSelected(rowId)
+            
+        return ret
         
-        #self.itemDataMap[dataId][colId] = newVal
-        if setView:
-            self.SetStringItem(rowId, colId, newVal)
         
 class MainWin(wx.App):
     def __init__(self):
@@ -528,6 +562,18 @@ def makeMainWin():
     view3.addRow(['mlkcadf'])
     view3.modRow(4, 0, 'hello world', True)
     #view3.clear()
+    
+    print view3.getText(2, 0)
+    print view3.getText(4, 0)
+    
+    view3.Select(2)
+    view3.Select(4)
+    print view3.getSelectedRowId()
+    #view3.delSelectedRows()
+    
+    #view3.selectAll()
+    view3.modRowByExec(2, 'row[0] = row[0]*2')
+    print view3.getFirstSelectedText(0)
     
 
     #END EVENT STUB
