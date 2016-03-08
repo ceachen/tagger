@@ -1,9 +1,9 @@
 name;200;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,comment;260;left;,a;100;left;,b;20;left;
 a,D:\test\a,2016-03-05,,,,
 a - 副本,D:\test\a - 副本,2016-03-05,;asdfasdf;mnafad;nnnn,,,
-asdfasdfasdf,C:\Windows\System32\0409,2016-03-05,[NEW],,,
+0409,C:\Windows\System32\0409,2016-03-05,[NEW],,,
 12520437,C:\Windows\System32\12520437.cpx,2016-03-05,[NEW],,,
-asdcasdfasdfadsf,C:\Windows\System32\12520850.cpx,2016-03-05,[NEW],,,
+12520850,C:\Windows\System32\12520850.cpx,2016-03-05,[NEW],,,
 360rescue,C:\Windows\System32\360rescue.img,2016-03-05,[NEW],,,
 360SoftMgr,C:\Windows\System32\360SoftMgr.cpl,2016-03-05,,,,
 7B296FB0-376B-497e-B012-9C450E1B7327-5P-0,C:\Windows\System32\7B296FB0-376B-497e-B012-9C450E1B7327-5P-0.C7483456-A289-439d-8115-601632D005A0,2016-03-05,,,,

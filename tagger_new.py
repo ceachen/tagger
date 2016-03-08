@@ -638,7 +638,7 @@ class Model(object):
         _tostrsItem = [self.itemColumnStr]
         for i in self.itemdata.values():
             _tostrsItem.append(','.join(i))
-        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME, comfirm)
+        io.save(_tostrsItem, ITEM_CONFIG_F_NAME, comfirm)
         
     def savePath(self, comfirm=False):
         io.save([p[0] for p in self.pathdata.values()], PATH_CONFIG_F_NAME, comfirm)
@@ -651,7 +651,10 @@ class EventHandler(object):
         self.model = model
         
     def itemEdit(self, event):
-        print 'itemEdit'
+        if not self.oldval == event.Text:
+            self.itemView.modRow(event.GetIndex(), event.GetColumn(), event.Text)
+            self.model.saveItem()
+        del self.oldval
     def itemBatchEdit_F4(self):
         print 'itemBatchEdit'
     def itemSetTag_F9(self):
