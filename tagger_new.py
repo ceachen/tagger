@@ -526,7 +526,7 @@ class Model(object):
         self._initBlacklist()
         self._initFilters()
         
-        self._buildTagsHtmlStr()
+        #self._buildTagsHtmlStr()
     def _initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
@@ -551,8 +551,8 @@ class Model(object):
         self.tagFooterStr = ss[2]
         
         #content inited by items
-        self._buildTagsHtmlStr()
-    def _buildTagsHtmlStr(self):
+        #self._buildTagsHtmlStr()
+    def buildTagsHtmlStr(self):
         _tags = []
         for aTag, aCount in sorted(self.tagdata.items()):#tag sort
             _tagHtmlStr = self.tagTemplate%('%s:%d'%(aTag, aCount))
@@ -635,6 +635,15 @@ class Model(object):
         itemTags = itemTagStr.split(';')
         return aTag in itemTags
         
+    def saveItem(self, comfirm=False):
+        _tostrsItem = [self.itemColumnStr]
+        for i in self.itemdata.values():
+            _tostrsItem.append(','.join(i))
+        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME, comfirm)
+        
+    def savePath(self, comfirm=False):
+        io.save([p[0] for p in self.pathdata.values()], PATH_CONFIG_F_NAME, comfirm)
+
 #BEGIN EVENT STUB
 class EvtStub(object):
     def __init__(self, sender):
@@ -644,8 +653,12 @@ class EvtStub(object):
 #END EVENT STUB
 
 class EventHandler(object):
-    def __init__(self, sender):
-        self.sender = sender
+    def __init__(self, tagView, pathView, itemView, model):
+        self.tagView = tagView
+        self.pathView = pathView
+        self.itemView = itemView
+        self.model = model
+        
     def itemEdit(self):
         pass
     def itemBatchEdit_F4(self):
@@ -661,26 +674,65 @@ class EventHandler(object):
     def itemDel(self):
         pass
     def pathDel(self):
-        pass
-    def itemSelectAll_F5(self):
-        pass
-    def itemSortRev_F6(self):
-        pass
-    def itemOpenDir_F7(self):
-        pass
-    def itemOpen_F8(self):
-        pass
+        self.pathView.delSelectedRows()
+        
+        self.model.pathdata = self.pathView.allItemDataMap
+        self.model.savePath()
+        
+        self.repaintAll()
+        
+    def itemSelectAll_F5(self):#stop here
+        self.itemView.selectAll()
+    def itemSortRev_F6(self):#stop here
+        self.itemView.onRevSort(PATH_COL_IDX)
+    def itemOpenDir_F7(self):#stop here
+        os.startfile(os.path.dirname(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX)))
+    def itemOpen_F8(self):#stop here
+        os.startfile(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX))
     def pathSync_F2(self):
         pass
-    def pathClear_F2(self):
+    def pathClear_F3(self):
         pass
-    def pathAdd_Drop(self):
-        pass
+    def pathAdd_Drop(self, x, y, filenames):
+        print filenames
     def itemFilterByInput(self):
         pass
     def itemFilterByTag(self):
         pass
-
+    
+    
+    def keyEvt(self, event):
+        sender = event.GetEventObject()
+        key = event.GetKeyCode()
+        if self.pathView == sender:
+            if wx.WXK_DELETE == key:
+                self.pathDel()
+        elif self.itemView == sender:
+            if wx.WXK_F7 == key:
+                self.itemOpenDir_F7()
+            elif wx.WXK_F8 == key:
+                self.itemOpen_F8()
+            elif wx.WXK_F5 == key:
+                self.itemSelectAll_F5()
+            elif wx.WXK_F6 == key:
+                self.itemSortRev_F6()
+    
+    def repaintAll(self):
+        self.model.buildTagsHtmlStr()
+        self.tagView.SetPage(self.model.tagHtmlStr)
+        ui_utils.addFullExpandChildComponent(self.tagView)
+        ui_utils.addFullExpandChildComponent(self.pathView)
+        ui_utils.addFullExpandChildComponent(self.itemView)
+        
+    def _listBeginEdit(self, event):#disable edit: path, tags
+        if READONLY == self.itemView.columns[event.Column][3]:
+            event.Veto()#Readonly
+        else:
+            self.oldval = event.Text
+            #ui_utils.log('edit item')
+    def _readonlyCell(self, event):
+        event.Veto()
+        
 def makeMainWin():
     mainWin = MainWin()
     
@@ -692,61 +744,33 @@ def makeMainWin():
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))    
     view4 = ListView(view1.p3, model.itemcolumns)
     
-    #BEGIN EVENT STUB
-    '''
-    mainWin.registerSearcher(EvtStub('searcher').handler)
-    for evtId in (20,30,40,50,60,70,80,90,100,110,120):
-        mainWin.BindToolbarEvent(evtId, EvtStub(str(evtId)).handler)
-    view2.registerTagClick(EvtStub('tag filter').handler)
-    view2.refreshData('\n'.join(io.load('___tag.txt')))
-    FileDropTarget(view2).registerPathAdd(EvtStub('file drop').handler)
-    listctrldata = {
-        1 : ["Hey!"],
-        2 : ["Try changing the contents"],
-        3 : ["in"],
-        4 : ["See how the length columns"],
-        5 : ["You can use"],
-        6 : ["and cursor up"],
-        }
-    for key, val in listctrldata.items():
-        view3.itemDataMap[key] = val
-        view3.allItemDataMap[key] = val
-    for key, data in listctrldata.items():
-        index = view3.InsertStringItem(sys.maxint, data[0])
-        view3.SetItemData(index, key)
-        
-
-    view3.delRow(2)
-    id = view3.hideRow(4)
-    view3.showRow(id)
-    view3.addRow(['mlkcadf'])
-    view3.modRow(4, 0, 'hello world', True)
-    #view3.clear()
+    evtHandler = EventHandler(view2, view3, view4, model)
+    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
+    view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
     
-    print view3.getText(2, 0)
-    print view3.getText(4, 0)
+    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._readonlyCell)
+    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._listBeginEdit)
     
-    view3.Select(2)
-    view3.Select(4)
-    print view3.getSelectedRowId()
-    #view3.delSelectedRows()
+    FileDropTarget(view3).registerPathAdd(evtHandler.pathAdd_Drop)
     
-    #view3.selectAll()
-    view3.modRowByExec(2, 'row[0] = row[0]*2')
-    print view3.getFirstSelectedText(0)
+    mainWin.BindToolbarEvent(20, evtHandler.pathSync_F2)
+    mainWin.BindToolbarEvent(30, evtHandler.pathClear_F3)
+    mainWin.BindToolbarEvent(40, evtHandler.itemBatchEdit_F4)
+    mainWin.BindToolbarEvent(50, evtHandler.itemSelectAll_F5)
+    mainWin.BindToolbarEvent(60, evtHandler.itemSortRev_F6)
+    mainWin.BindToolbarEvent(70, evtHandler.itemOpenDir_F7)
+    mainWin.BindToolbarEvent(80, evtHandler.itemOpen_F8)
+    mainWin.BindToolbarEvent(90, evtHandler.itemSetTag_F9)
+    mainWin.BindToolbarEvent(100, evtHandler.itemAutoTag_F10)
+    mainWin.BindToolbarEvent(110, evtHandler.itemNewTag_F11)
+    mainWin.BindToolbarEvent(120, evtHandler.itemDelTag_F12)
     
-    '''
-    #END EVENT STUB
-
-    view2.SetPage(model.tagHtmlStr)
     for key, val in model.itemdata.items():
         view4.addRow(val)
     for key, val in model.pathdata.items():
         view3.addRow(val)
     
-    ui_utils.addFullExpandChildComponent(view2)
-    ui_utils.addFullExpandChildComponent(view3)
-    ui_utils.addFullExpandChildComponent(view4)
+    evtHandler.repaintAll()
     
     mainWin.log('show me done')
     mainWin.MainLoop()
