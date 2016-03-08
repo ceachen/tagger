@@ -246,6 +246,10 @@ class ListView(wx.ListCtrl,
         for i in range(1, len(rowInfo)):
             self.SetStringItem(index, i, rowInfo[i])
         self.SetItemData(index, dataId)
+    def showAll(self):
+        for dataId in self.allItemDataMap.keys():
+            if not dataId in self.itemDataMap.keys():
+                self.showRow(dataId)
         
     def modRow(self, rowId, colId, newVal, setView=False):
         dataId = self.GetItemData(rowId)
@@ -265,12 +269,12 @@ class ListView(wx.ListCtrl,
                 self.SetStringItem(rowId, i, row[i])
                 return
                 
-    def delRow(self, rowId):
+    def delRow(self, rowId):#TBD
         dataId = self.GetItemData(rowId)
         self.allItemDataMap.pop(dataId)
         self.itemDataMap.pop(dataId)
         self.DeleteItem(rowId)
-    def hideRow(self, rowId):
+    def hideRow(self, rowId):#TBD
         dataId = self.GetItemData(rowId)
         self.itemDataMap.pop(dataId)
         self.DeleteItem(rowId)
@@ -629,11 +633,6 @@ class Model(object):
             return 1
         else:
             return max(dict.keys()) + 1
-    def _hasTag(self, rowKey, aTag):
-        itemInAll = self.itemdata[rowKey]
-        itemTagStr = itemInAll[TAG_COL_IDX]
-        itemTags = itemTagStr.split(';')
-        return aTag in itemTags
         
     def saveItem(self, comfirm=False):
         _tostrsItem = [self.itemColumnStr]
@@ -644,14 +643,6 @@ class Model(object):
     def savePath(self, comfirm=False):
         io.save([p[0] for p in self.pathdata.values()], PATH_CONFIG_F_NAME, comfirm)
 
-#BEGIN EVENT STUB
-class EvtStub(object):
-    def __init__(self, sender):
-        self.sender = sender
-    def handler(self, *args):
-        print '%s:%s' % (self.sender, args) 
-#END EVENT STUB
-
 class EventHandler(object):
     def __init__(self, tagView, pathView, itemView, model):
         self.tagView = tagView
@@ -659,20 +650,20 @@ class EventHandler(object):
         self.itemView = itemView
         self.model = model
         
-    def itemEdit(self):
-        pass
+    def itemEdit(self, event):
+        print 'itemEdit'
     def itemBatchEdit_F4(self):
-        pass
+        print 'itemBatchEdit'
     def itemSetTag_F9(self):
-        pass
+        print 'itemSetTag'
     def itemAutoTag_F10(self):
-        pass
+        print 'itemAutoTag'
     def itemNewTag_F11(self):
-        pass
+        print 'itemNewTag'
     def itemDelTag_F12(self):
-        pass
+        print 'itemDelTag'
     def itemDel(self):
-        pass
+        print 'itemDel'
     def pathDel(self):
         self.pathView.delSelectedRows()
         
@@ -690,25 +681,57 @@ class EventHandler(object):
     def itemOpen_F8(self):#stop here
         os.startfile(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX))
     def pathSync_F2(self):
-        pass
+        print 'pathSync'
     def pathClear_F3(self):
-        pass
+        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            self.itemView.clear()
+            self.pathView.clear()
+            self.model.tagdata = {}
+            self.model.itemdata = {}
+            self.model.pathdata = {}
+            self.tagView.SetPage('')
+            self.repaintAll()
+        _dlg.Destroy()
     def pathAdd_Drop(self, x, y, filenames):
         print filenames
-    def itemFilterByInput(self):
-        pass
-    def itemFilterByTag(self):
-        pass
-    
-    
+    def itemFilterByInput(self, text):
+        print 'itemFilterByInput'
+    def itemFilterByTag(self, tagStr):#too slow
+        tag = tagStr[1:-1]
+        tag = tag.split(':')[0]
+        if ALL_TAG == tag:
+            self.itemView.showAll()
+        else:
+            rowId = 0
+            while rowId < self.itemView.GetItemCount():
+                tags = self.itemView.getText(rowId, TAG_COL_IDX)
+                if tag in tags:
+                    rowId += 1
+                else:
+                    self.itemView.hideRow(rowId)
+                
+            for aKey, aItem in self.itemView.allItemDataMap.items():
+                itemTagStr = aItem[TAG_COL_IDX]
+                itemTags = itemTagStr.split(';')
+                if tag in itemTags:
+                    if not aKey in self.itemView.itemDataMap.keys():
+                        self.itemView.showRow(aKey)
+
     def keyEvt(self, event):
         sender = event.GetEventObject()
         key = event.GetKeyCode()
         if self.pathView == sender:
             if wx.WXK_DELETE == key:
                 self.pathDel()
+            elif wx.WXK_F2 == event.GetKeyCode():
+                self.pathSync_F2()
+            elif wx.WXK_F3 == event.GetKeyCode():#clear all
+                self.pathClear_F3()
         elif self.itemView == sender:
-            if wx.WXK_F7 == key:
+            if wx.WXK_DELETE == key:
+                self.itemDel()
+            elif wx.WXK_F7 == key:
                 self.itemOpenDir_F7()
             elif wx.WXK_F8 == key:
                 self.itemOpen_F8()
@@ -716,6 +739,16 @@ class EventHandler(object):
                 self.itemSelectAll_F5()
             elif wx.WXK_F6 == key:
                 self.itemSortRev_F6()
+            elif wx.WXK_F9 == event.GetKeyCode():
+                self.itemSetTag_F9()
+            elif wx.WXK_F11 == event.GetKeyCode():
+                self.itemNewTag_F11()
+            elif wx.WXK_F12 == event.GetKeyCode():
+                self.itemDelTag_F12()
+            elif wx.WXK_F10 == event.GetKeyCode():
+                self.itemAutoTag_F10()
+            elif wx.WXK_F4 == event.GetKeyCode():#multi set cell
+                self.itemBatchEdit_F4()
     
     def repaintAll(self):
         self.model.buildTagsHtmlStr()
@@ -748,10 +781,13 @@ def makeMainWin():
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
     
+    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemEdit)
+    FileDropTarget(view3).registerPathAdd(evtHandler.pathAdd_Drop)
+    mainWin.registerSearcher(evtHandler.itemFilterByInput)
+    view2.registerTagClick(evtHandler.itemFilterByTag)
+    
     view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._readonlyCell)
     view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._listBeginEdit)
-    
-    FileDropTarget(view3).registerPathAdd(evtHandler.pathAdd_Drop)
     
     mainWin.BindToolbarEvent(20, evtHandler.pathSync_F2)
     mainWin.BindToolbarEvent(30, evtHandler.pathClear_F3)
