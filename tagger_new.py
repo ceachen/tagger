@@ -1,9 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 3.1
+^ version: 4.0
 ^ create: 2016-02-21
-^ release: 2016-02-28
+^ release: 2016-03-10
 ^ platform: py2.7 & wx3.0
 ^ --------
 '''
@@ -745,7 +745,17 @@ class EventHandler(object):
         self.repaintTagView()
     @errmsg
     def itemAutoTag_F10(self):
-        print 'itemAutoTag'
+        for rowId in self.itemView.getSelectedRowId():
+            filepath = self.itemView.getText(rowId, PATH_COL_IDX)
+            if os.path.isfile(filepath):
+                _ext = os.path.splitext(filepath)[1].lower()
+                if not '' == _ext:
+                    if _ext in self.model.ext.keys():
+                        self._setTags(rowId, '+%s;-%s'%(self.model.ext[_ext], _ext))
+                    else:
+                        self._setTags(rowId, '+%s'%_ext)
+        self.model.saveItem()
+        self.repaintTagView()
     @errmsg
     def itemNewTag_F11(self):
         for rowId in self.itemView.getSelectedRowId():
