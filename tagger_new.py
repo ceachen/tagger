@@ -701,7 +701,6 @@ class EventHandler(object):
                 newtagstr = ';'.join(sorted(newtaglist))
             
             self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)                
-                
     def _setTag(self, tags, aTag, action):#return + when add, - when del, '' when do nothing
         if '+' == action:
             if not aTag in tags:
@@ -790,9 +789,30 @@ class EventHandler(object):
     @errmsg
     def itemOpen_F8(self):#stop here
         os.startfile(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX))
-    @errmsg
+    #@errmsg
     def pathSync_F2(self):
-        print 'pathSync'
+        pathlist = [p[0] for p in self.model.pathdata.values()]#all pathes
+        self.itemView.showAll()
+        rowId = 0
+        while rowId < self.itemView.GetItemCount():
+            if not SYS_TAG_RMV in self.itemView.getText(rowId, TAG_COL_IDX).split(';'):
+                _inPath = False
+                for p in pathlist:#do with items not under path
+                    if p in self.itemView.getText(rowId, PATH_COL_IDX):
+                        _inPath = True
+                        break
+                        
+                if not _inPath or not os.path.exists(self.itemView.getText(rowId, PATH_COL_IDX)):
+                    self._setTags(rowId, '+%s'%SYS_TAG_RMV)#soft delete item
+            rowId += 1
+                    
+        for p in pathlist:
+            for f in ui_utils.getSubFiles(p):
+                self._addItem(f[0], f[1])
+                
+        self.model.itemdata = self.itemView.allItemDataMap
+        self.model.saveItem()
+        self.repaintTagView()
     @errmsg
     def pathClear_F3(self):
         _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
@@ -805,12 +825,65 @@ class EventHandler(object):
             self.tagView.SetPage('')
             self.repaintTagView()
         _dlg.Destroy()
+        
+    def _addPathOnly(self, newpath):#called by addPath. not care items
+        if not os.path.sep == newpath[-1]:
+            newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
+            
+        for p in self.model.pathdata.values():
+            #if newpath.startswith(p[0]):#fix bug: if upper path added, child path can't be added anymore
+            if newpath == p[0]:#do not change. because there is difference under NO recursion mode
+                return False
+                
+        self.pathView.addRow([newpath])
+        #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
+        return True
+    def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
+        for i_blackrule in self.model.blacklist:
+            if eval(i_blackrule):
+                ui_utils.warn('%s matches %s'%(filepath, i_blackrule))
+                return False
+                
+        for f in self.model.itemdata.values():
+            if filepath == f[1]:
+                return False
+                
+        if os.path.isfile(filepath):
+            filename = os.path.splitext(filename)[0]#only file name, without ext
+        #self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
+        self.itemView.addRow([filename,filepath,ui_utils.today(),SYS_TAG_NEW])#fix bug: add item with less field
+        
+        self.model._incTag(SYS_TAG_NEW)
+        return True
+        #ui_utils.log('Item %s added'%filepath)
+        
     @errmsg
     def pathAdd_Drop(self, x, y, filenames):
-        print filenames
+        for file in filenames:
+            if os.path.isdir(file):
+                thispathadded = self._addPathOnly(file)#path added
+                if thispathadded:
+                    for f in ui_utils.getSubFiles(file):
+                        self._addItem(f[0], f[1])#path, filename #UnicodeDecodeError
+        
+        self.model.pathdata = self.pathView.allItemDataMap
+        self.model.itemdata = self.itemView.allItemDataMap
+        self.model.savePath()
+        self.model.saveItem()
+        self.repaintTagView()
+                
     @errmsg
     def itemFilterByInput(self, text):
-        print 'itemFilterByInput'
+        if '' == text.strip():
+            self.itemView.showAll()
+        else:
+            rowId = 0
+            while rowId < self.itemView.GetItemCount():
+                row = self.itemView.itemDataMap[self.itemView.GetItemData(rowId)]
+                if not eval(text):
+                    self.itemView.hideRow(rowId)
+                else:
+                    rowId += 1
     @errmsg
     def itemFilterByTag(self, tagStr):#too slow
         tag = tagStr[1:-1]
