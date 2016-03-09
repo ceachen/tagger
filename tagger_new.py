@@ -643,6 +643,18 @@ class Model(object):
     def savePath(self, comfirm=False):
         io.save([p[0] for p in self.pathdata.values()], PATH_CONFIG_F_NAME, comfirm)
 
+def errmsg(func):
+    def _errmsg(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+        except Exception, e:
+            _dlg = wx.MessageDialog(None, str(e), 'ERROR', wx.OK | wx.ICON_ERROR)
+            _dlg.ShowModal()
+            _dlg.Destroy()
+            raise e
+        return ret
+    return _errmsg
+
 class EventHandler(object):
     def __init__(self, tagView, pathView, itemView, model):
         self.tagView = tagView
@@ -650,41 +662,106 @@ class EventHandler(object):
         self.itemView = itemView
         self.model = model
         
+    def _setTag(self, rowId, aTag, action):#return + when add, - when del, '' when do nothing
+        tagstr = self.itemView.getText(rowId, TAG_COL_IDX)
+        tags = tagstr.split(';')
+        
+        if '+' == action:
+            if not aTag in tags:
+                if '' == tagstr.strip():
+                    newtagstr = aTag
+                else:
+                    newtagstr = '%s;%s'%(tagstr, aTag)
+                self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)
+                self.model._incTag(aTag)
+                return '+'
+        elif '-' == action:
+            if aTag in tags:
+                tags.remove(aTag)
+                if len(tags) > 1:
+                    newtagstr = ';'.join(sorted(tags))
+                elif len(tags) == 1:
+                    newtagstr = tags[0]
+                else:
+                    newtagstr = ''
+                self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)
+                self.model._decTag(aTag)
+                return '-'
+        elif '$' == action:
+            if aTag in tags:
+                return self._setTag(rowId, aTag, '-')
+            else:
+                return self._setTag(rowId, aTag, '+')
+                
+        return ''
+        
+    @errmsg
     def itemEdit(self, event):
         if not self.oldval == event.Text:
             self.itemView.modRow(event.GetIndex(), event.GetColumn(), event.Text)
             self.model.saveItem()
         del self.oldval
+    @errmsg
     def itemBatchEdit_F4(self):
-        print 'itemBatchEdit'
+        _dlg = wx.TextEntryDialog(None, "row[?] = u'xxx'", 'Set Cells for Multi Rows')
+        if _dlg.ShowModal() == wx.ID_OK:
+            setNewValue = _dlg.GetValue()
+            
+            for i in self.itemView.getSelectedRowId():
+                self.itemView.modRowByExec(i, setNewValue)
+            self.model.saveItem()
+        _dlg.Destroy()
+    @errmsg
     def itemSetTag_F9(self):
-        print 'itemSetTag'
+        _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
+        if _dlg.ShowModal() == wx.ID_OK:
+            newTags = [x.strip() for x in _dlg.GetValue().split(';')]
+            for aTag in newTags:
+                for rowId in self.itemView.getSelectedRowId():
+                    self._setTag(rowId, aTag[1:], aTag[0])
+        _dlg.Destroy()
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
     def itemAutoTag_F10(self):
         print 'itemAutoTag'
+    @errmsg
     def itemNewTag_F11(self):
-        print 'itemNewTag'
+        for rowId in self.itemView.getSelectedRowId():
+            self._setTag(rowId, SYS_TAG_NEW, '$')
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
     def itemDelTag_F12(self):
         print 'itemDelTag'
+    @errmsg
     def itemDel(self):
         print 'itemDel'
+    @errmsg
     def pathDel(self):
         self.pathView.delSelectedRows()
         
         self.model.pathdata = self.pathView.allItemDataMap
         self.model.savePath()
         
-        self.repaintAll()
+        self.repaintTagView()
         
+    @errmsg
     def itemSelectAll_F5(self):#stop here
         self.itemView.selectAll()
+    @errmsg
     def itemSortRev_F6(self):#stop here
         self.itemView.onRevSort(PATH_COL_IDX)
+    @errmsg
     def itemOpenDir_F7(self):#stop here
         os.startfile(os.path.dirname(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX)))
+    @errmsg
     def itemOpen_F8(self):#stop here
         os.startfile(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX))
+    @errmsg
     def pathSync_F2(self):
         print 'pathSync'
+    @errmsg
     def pathClear_F3(self):
         _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
         if wx.ID_YES == _dlg.ShowModal():
@@ -694,12 +771,15 @@ class EventHandler(object):
             self.model.itemdata = {}
             self.model.pathdata = {}
             self.tagView.SetPage('')
-            self.repaintAll()
+            self.repaintTagView()
         _dlg.Destroy()
+    @errmsg
     def pathAdd_Drop(self, x, y, filenames):
         print filenames
+    @errmsg
     def itemFilterByInput(self, text):
         print 'itemFilterByInput'
+    @errmsg
     def itemFilterByTag(self, tagStr):#too slow
         tag = tagStr[1:-1]
         tag = tag.split(':')[0]
@@ -753,12 +833,10 @@ class EventHandler(object):
             elif wx.WXK_F4 == event.GetKeyCode():#multi set cell
                 self.itemBatchEdit_F4()
     
-    def repaintAll(self):
+    def repaintTagView(self):
         self.model.buildTagsHtmlStr()
         self.tagView.SetPage(self.model.tagHtmlStr)
         ui_utils.addFullExpandChildComponent(self.tagView)
-        ui_utils.addFullExpandChildComponent(self.pathView)
-        ui_utils.addFullExpandChildComponent(self.itemView)
         
     def _listBeginEdit(self, event):#disable edit: path, tags
         if READONLY == self.itemView.columns[event.Column][3]:
@@ -809,7 +887,9 @@ def makeMainWin():
     for key, val in model.pathdata.items():
         view3.addRow(val)
     
-    evtHandler.repaintAll()
+    evtHandler.repaintTagView()
+    ui_utils.addFullExpandChildComponent(view3)
+    ui_utils.addFullExpandChildComponent(view4)
     
     mainWin.log('show me done')
     mainWin.MainLoop()
