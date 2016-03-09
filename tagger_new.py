@@ -662,36 +662,60 @@ class EventHandler(object):
         self.itemView = itemView
         self.model = model
         
-    def _setTag(self, rowId, aTag, action):#return + when add, - when del, '' when do nothing
+    def _setTags(self, rowId, newtags, setView=True):
         tagstr = self.itemView.getText(rowId, TAG_COL_IDX)
-        tags = tagstr.split(';')
+        tags = [x.strip() for x in tagstr.split(';')]
+        if [''] == tags:
+            tags = []
         
+        if '-' == newtags:
+            for aTag in tags:
+                self._setTag(tags, aTag, '-')
+            newtaglist = []
+        elif '%s%s'%('$',SYS_TAG_DEL) == newtags:
+            if SYS_TAG_DEL in tags:
+                newtaglist = copy.copy(tags)
+                self._setTag(tags, SYS_TAG_DEL, '-')
+                newtaglist.remove(SYS_TAG_DEL)
+            else:
+                self._setTag(tags, SYS_TAG_DEL, '+')
+                for aTag in tags:
+                    self._setTag(tags, aTag, '-')
+                newtaglist = [SYS_TAG_DEL]
+        else:
+            newtags = newtags.split(';')
+            newtaglist = copy.copy(tags)
+            for aTag in newtags:
+                ret = self._setTag(tags, aTag[1:], aTag[0])
+                if '+' == ret:
+                    newtaglist.append(aTag[1:])
+                elif '-' == ret:
+                    newtaglist.remove(aTag[1:])
+        
+        if setView:
+            if 0 == len(newtaglist):
+                newtagstr = ''
+            elif 1 == len(newtaglist):
+                newtagstr = newtaglist[0]
+            else:
+                newtagstr = ';'.join(sorted(newtaglist))
+            
+            self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)                
+                
+    def _setTag(self, tags, aTag, action):#return + when add, - when del, '' when do nothing
         if '+' == action:
             if not aTag in tags:
-                if '' == tagstr.strip():
-                    newtagstr = aTag
-                else:
-                    newtagstr = '%s;%s'%(tagstr, aTag)
-                self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)
                 self.model._incTag(aTag)
                 return '+'
         elif '-' == action:
             if aTag in tags:
-                tags.remove(aTag)
-                if len(tags) > 1:
-                    newtagstr = ';'.join(sorted(tags))
-                elif len(tags) == 1:
-                    newtagstr = tags[0]
-                else:
-                    newtagstr = ''
-                self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)
                 self.model._decTag(aTag)
                 return '-'
         elif '$' == action:
             if aTag in tags:
-                return self._setTag(rowId, aTag, '-')
+                return self._setTag(tags, aTag, '-')
             else:
-                return self._setTag(rowId, aTag, '+')
+                return self._setTag(tags, aTag, '+')
                 
         return ''
         
@@ -715,10 +739,8 @@ class EventHandler(object):
     def itemSetTag_F9(self):
         _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
         if _dlg.ShowModal() == wx.ID_OK:
-            newTags = [x.strip() for x in _dlg.GetValue().split(';')]
-            for aTag in newTags:
-                for rowId in self.itemView.getSelectedRowId():
-                    self._setTag(rowId, aTag[1:], aTag[0])
+            for rowId in self.itemView.getSelectedRowId():
+                self._setTags(rowId, _dlg.GetValue())
         _dlg.Destroy()
         self.model.saveItem()
         self.repaintTagView()
@@ -728,15 +750,25 @@ class EventHandler(object):
     @errmsg
     def itemNewTag_F11(self):
         for rowId in self.itemView.getSelectedRowId():
-            self._setTag(rowId, SYS_TAG_NEW, '$')
+            self._setTags(rowId, '%s%s'%('$', SYS_TAG_NEW))
         self.model.saveItem()
         self.repaintTagView()
     @errmsg
     def itemDelTag_F12(self):
-        print 'itemDelTag'
+        for rowId in self.itemView.getSelectedRowId():
+            self._setTags(rowId, '%s%s'%('$', SYS_TAG_DEL))
+        self.model.saveItem()
+        self.repaintTagView()
     @errmsg
     def itemDel(self):
-        print 'itemDel'
+        for rowId in self.itemView.getSelectedRowId():
+            self._setTags(rowId, '-', False)
+        self.itemView.delSelectedRows()
+        
+        self.model.itemdata = self.itemView.allItemDataMap
+        self.model.saveItem()
+        
+        self.repaintTagView()
     @errmsg
     def pathDel(self):
         self.pathView.delSelectedRows()

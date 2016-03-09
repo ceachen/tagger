@@ -1,3 +1,0 @@
-name;200;left;,path;200;left;ro,created;80;right;,tag;100;left;ro,comment;260;left;,a;100;left;,b;20;left;
-a,D:\test\a,2016-03-05,[NEW],,,
-a - 副本,D:\test\a - 副本,2016-03-05,;[NEW];asdfasdf;mnafad,,,
