@@ -998,10 +998,10 @@ class EventHandler(object):
                     size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
             elif os.path.isfile(p):
                 size = os.path.getsize(p)
-            size = size/1024/1024
+            size = '{:,}'.format(size).replace(',',';')
                 
             oldComment = self.itemView.getText(i, COMMENT_COL_IDX)
-            self.itemView.modRow(i, COMMENT_COL_IDX, '{%dM}%s'%(size,oldComment), True)
+            self.itemView.modRow(i, COMMENT_COL_IDX, '{%s}%s'%(size,oldComment), True)
             
         self.model.saveItem()            
         
