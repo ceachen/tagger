@@ -45,6 +45,7 @@ ALL_TAG ='ALL'
 
 TAG_COL_IDX = 3
 PATH_COL_IDX = 1
+COMMENT_COL_IDX = 5
 
 ENCODING = 'gbk'
 
@@ -333,7 +334,8 @@ class MainWin(wx.App):
         delTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag DEL')
         batSet_bmp = (wx.ArtProvider.GetBitmap(wx.ART_HELP_SETTINGS, wx.ART_TOOLBAR, tsize), 'multi set')
         
-        user1_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), '?')
+        user1_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), 'print tags')
+        user2_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), 'get size')
         #see ico from http://blog.csdn.net/rehung/article/details/1859030
         #id same with Fx key
         self._initToolbarOneBtn(20, sync_bmp)
@@ -351,6 +353,7 @@ class MainWin(wx.App):
         self._initToolbarOneBtn(120, delTag_bmp)
         self.tb.AddSeparator()
         self._initToolbarOneBtn(910, user1_bmp)
+        self._initToolbarOneBtn(920, user2_bmp)
         self.tb.AddSeparator()
         self.tb.AddSeparator()
         
@@ -986,6 +989,21 @@ class EventHandler(object):
     def evt_1(self):
         for k in sorted(self.model.tagdata.keys()):
             print '%s,%d'%(k,self.model.tagdata[k])
+    def evt_2(self):
+        for i in self.itemView.getSelectedRowId():
+            p = self.itemView.getText(i, PATH_COL_IDX)
+            size = 0L
+            if os.path.isdir(p):
+                for root, dirs, files in os.walk(p):
+                    size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
+            elif os.path.isfile(p):
+                size = os.path.getsize(p)
+            size = size/1024/1024
+                
+            oldComment = self.itemView.getText(i, COMMENT_COL_IDX)
+            self.itemView.modRow(i, COMMENT_COL_IDX, '{%dM}%s'%(size,oldComment), True)
+            
+        self.model.saveItem()            
         
 def makeMainWin():
     mainWin = MainWin()
@@ -1023,6 +1041,7 @@ def makeMainWin():
     mainWin.BindToolbarEvent(120, evtHandler.itemDelTag_F12)
     
     mainWin.BindToolbarEvent(910, evtHandler.evt_1)
+    mainWin.BindToolbarEvent(920, evtHandler.evt_2)
     
     for key, val in model.itemdata.items():
         view4.addRow(val)
