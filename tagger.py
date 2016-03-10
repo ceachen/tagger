@@ -25,13 +25,13 @@ import shutil
 import copy
 
 #USER DEFINE
-ADD_ITEM_RECURSION = False
 SYS_TAG_NEW = '[NEW]'
 SYS_TAG_DEL = '[DEL]'
 SYS_TAG_RMV = '[RMV]'
 TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'), SYS_TAG_RMV:('green', '+5', 'I'),}
 
 #SYSTEM DEFINE
+ADD_ITEM_RECURSION = '__RECURSION.txt'
 PATH_CONFIG_F_NAME = '__pathes.txt'
 ITEM_CONFIG_LINK = '__items_link.txt'#use remote file to save item data
 ITEM_CONFIG_F_NAME = '__items.txt'
@@ -104,7 +104,8 @@ class ui_utils(object):
     @staticmethod
     def getSubFiles(rootpath):
         ret = []
-        if ADD_ITEM_RECURSION:
+        if os.path.isfile(ADD_ITEM_RECURSION):
+            print 'RECURSION'
             for root, dirs, files in os.walk(rootpath):
                 for file in files:#do not include folder
                     ret.append((os.path.join(root, file), file))
@@ -1044,4 +1045,5 @@ if "__main__" == __name__:
         BLACK_LIST_F_NAME = '_%s%s' % (sys.argv[1], BLACK_LIST_F_NAME[1:])
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
         ITEM_CONFIG_LINK = '_%s%s' % (sys.argv[1], ITEM_CONFIG_LINK[1:])
+        ADD_ITEM_RECURSION = '_%s%s' % (sys.argv[1], ADD_ITEM_RECURSION[1:])
     makeMainWin()
