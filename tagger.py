@@ -1,9 +1,9 @@
 '''
 ^ name: tag tool
 ^ author: tillfall(tillfall@126.com)
-^ version: 3.1
+^ version: 4.0
 ^ create: 2016-02-21
-^ release: 2016-02-28
+^ release: 2016-03-10
 ^ platform: py2.7 & wx3.0
 ^ --------
 '''
@@ -22,8 +22,8 @@ import datetime
 import unittest
 import locale
 import shutil
+import copy
 
-#--------BEGIG default config
 #USER DEFINE
 ADD_ITEM_RECURSION = False
 SYS_TAG_NEW = '[NEW]'
@@ -50,7 +50,6 @@ ENCODING = 'gbk'
 
 HELP = 'F2:SyncPath, F3:Clear, F4:SetColumn; F5:SelectAll, F6:SortPathRev, F7:OpenUpperDir, F8:Open; F9:SetTag, F10:AutoTag, F11:NEW, F12:DEL'
 
-#--------BEGIN ui utils
 class ui_utils(object):
     _log_inited = False
     @staticmethod
@@ -93,14 +92,14 @@ class ui_utils(object):
             "bcPlKrwugGnCFy6Mo3mBAQChDgRlP4RC7wAAAABJRU5ErkJggg==")
             
     @staticmethod
-    def addFullExpandChildComponent(parent, child):
+    def addFullExpandChildComponent(child):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(child, 1, wx.EXPAND)
-        parent.SetSizer(sizer)
-        parent.SetAutoLayout(True)
+        child.Parent.SetSizer(sizer)
+        child.Parent.SetAutoLayout(True)
         
-        child.SetSize(parent.GetSize())
-        child.SetBackgroundColour(parent.GetBackgroundColour())
+        child.SetSize(child.Parent.GetSize())
+        child.SetBackgroundColour(child.Parent.GetBackgroundColour())
         
     @staticmethod
     def getSubFiles(rootpath):
@@ -113,6 +112,199 @@ class ui_utils(object):
             for file in os.listdir(rootpath):
                 ret.append((os.path.join(rootpath, file), file))
         return ret
+        
+class SplitView(object):
+    def __init__(self, parent, p1Color='Pink', p2Color='Aquamarine', p3Color='Light Blue', lWidth=200, tHeight=300, minSize=80):
+        self.firstPanel = wx.SplitterWindow(parent, -1, style = wx.SP_LIVE_UPDATE)
+        self.secondPanel = wx.SplitterWindow(self.firstPanel, -1, style = wx.SP_LIVE_UPDATE)
+        
+        sty = wx.NO_FULL_REPAINT_ON_RESIZE
+        p1 = wx.Panel(self.secondPanel, -1, style=sty)
+        p2 = wx.Panel(self.secondPanel, -1, style=sty)
+        p3 = wx.Panel(self.firstPanel, -1, style=sty)
+        p1.SetBackgroundColour(p1Color)
+        p2.SetBackgroundColour(p2Color)        
+        p3.SetBackgroundColour(p3Color)
+        
+        self.firstPanel.SplitVertically(self.secondPanel, p3, lWidth)
+        self.secondPanel.SplitHorizontally(p1, p2, tHeight)
+        self.firstPanel.SetMinimumPaneSize(minSize)
+        self.secondPanel.SetMinimumPaneSize(minSize)
+
+        self.mainView = self.firstPanel
+        self.p1, self.p2, self.p3 = p1, p2, p3
+        
+class HtmlView(html.HtmlWindow):
+    def __init__(self, parent):
+        html.HtmlWindow.__init__(self, parent, -1, style=wx.NO_FULL_REPAINT_ON_RESIZE)
+    def registerTagClick(self, evtHandler):
+        self.evtHandler = evtHandler
+    def OnCellClicked(self, cell, x, y, evt):
+        if isinstance(cell, html.HtmlWordCell):
+            sel = html.HtmlSelection()
+            self.evtHandler(cell.ConvertToText(sel))
+        #super(HtmlView, self).OnCellClicked(cell, x, y, evt)
+    #def refreshData(self, htmlStr):
+    #    self.SetPage(htmlStr)
+        #ui_utils.addFullExpandChildComponent(self)
+        
+class ListView(wx.ListCtrl,
+           listmix.ListCtrlAutoWidthMixin,
+           listmix.TextEditMixin,
+           listmix.ColumnSorterMixin):#for sort
+    def __init__(self, parent, columns):
+        wx.ListCtrl.__init__(self, parent, -1, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT
+                                 | wx.BORDER_NONE
+                                 | wx.LC_SORT_ASCENDING)
+        listmix.ListCtrlAutoWidthMixin.__init__(self)
+        listmix.TextEditMixin.__init__(self)
+        listmix.ColumnSorterMixin.__init__(self, 100)
+                    
+        #for sort
+        self.il = wx.ImageList(16, 16)
+        self.sm_up = self.il.Add(ui_utils.get_UpArrow().GetBitmap())
+        self.sm_dn = self.il.Add(ui_utils.get_DnArrow().GetBitmap())
+        self.SetImageList(self.il, wx.IMAGE_LIST_SMALL)
+        
+        self.columns = columns
+        self._initColumns()
+        
+        self.allItemDataMap = {}
+        self.itemDataMap = {}
+        
+    def _initColumns(self):
+        i = 0
+        for col in self.columns:
+            self.InsertColumn(i, col[0], col[2])#name, align
+            self.SetColumnWidth(i, col[1])#width
+            i += 1
+        
+    # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
+    def GetListCtrl(self):
+        return self
+    # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
+    def GetSortImages(self):
+        return (self.sm_dn, self.sm_up)
+        
+    def onRevSort(self, colIdx):
+        _defaultSorter = self.GetColumnSorter
+        self.GetColumnSorter = self.GetColumnSorterRev
+        self.SortListItems(colIdx, int(not self._colSortFlag[colIdx]))
+        self.GetColumnSorter = _defaultSorter
+    def __revpath(self, p):
+        fs = p.split(os.path.sep)
+        fs.reverse()
+        return os.path.sep.join(fs)
+    def GetColumnSorterRev(self):
+        return self.__ColumnSorterRev
+    def __ColumnSorterRev(self, key1, key2):#copy from ColumnSorterMixin.__ColumnSorter
+        col = self._col
+        ascending = self._colSortFlag[col]
+        item1 = self.itemDataMap[key1][col]
+        item2 = self.itemDataMap[key2][col]
+        #rev begin
+        item1 = self.__revpath(item1)
+        item2 = self.__revpath(item2)
+        #rev end
+
+        #--- Internationalization of string sorting with locale module
+        if type(item1) == unicode and type(item2) == unicode:
+            cmpVal = locale.strcoll(item1, item2)
+        elif type(item1) == str or type(item2) == str:
+            cmpVal = locale.strcoll(str(item1), str(item2))
+        else:
+            cmpVal = cmp(item1, item2)
+        #---
+
+        # If the items are equal then pick something else to make the sort value unique
+        if cmpVal == 0:
+            cmpVal = apply(cmp, self.GetSecondarySortValues(col, key1, key2))
+
+        if ascending:
+            return cmpVal
+        else:
+            return -cmpVal
+    
+    def readonlyCell(self, event):#disable edit: path, tags
+        event.Veto()#Readonly
+        
+    def addRow(self, rowInfo):
+        if len(self.allItemDataMap) == 0:
+            id = 1
+        else:
+            id = max(self.allItemDataMap.keys()) + 1
+        self.allItemDataMap[id] = rowInfo
+        self.itemDataMap[id] = rowInfo
+        index = self.InsertStringItem(sys.maxint, rowInfo[0])
+        for i in range(1, len(rowInfo)):
+            self.SetStringItem(index, i, rowInfo[i])
+        self.SetItemData(index, id)
+    def showRow(self, dataId):
+        rowInfo = self.allItemDataMap[dataId]
+        self.itemDataMap[dataId] = rowInfo
+        index = self.InsertStringItem(sys.maxint, rowInfo[0])
+        for i in range(1, len(rowInfo)):
+            self.SetStringItem(index, i, rowInfo[i])
+        self.SetItemData(index, dataId)
+    def showAll(self):
+        for dataId in self.allItemDataMap.keys():
+            if not dataId in self.itemDataMap.keys():
+                self.showRow(dataId)
+        
+    def modRow(self, rowId, colId, newVal, setView=False):
+        dataId = self.GetItemData(rowId)
+        self.allItemDataMap[dataId][colId] = newVal
+        
+        #self.itemDataMap[dataId][colId] = newVal
+        if setView:
+            self.SetStringItem(rowId, colId, newVal)
+    def modRowByExec(self, rowId, execStr):
+        dataId = self.GetItemData(rowId)
+        row = self.allItemDataMap[dataId]
+        oldRowData = copy.copy(row)
+        
+        exec(execStr)
+        for i in range(len(oldRowData)):
+            if not oldRowData[i] == row[i]:
+                self.SetStringItem(rowId, i, row[i])
+                return
+                
+    def delRow(self, rowId):#TBD
+        dataId = self.GetItemData(rowId)
+        self.allItemDataMap.pop(dataId)
+        self.itemDataMap.pop(dataId)
+        self.DeleteItem(rowId)
+    def hideRow(self, rowId):#TBD
+        dataId = self.GetItemData(rowId)
+        self.itemDataMap.pop(dataId)
+        self.DeleteItem(rowId)
+        return dataId
+    def clear(self):
+        self.itemDataMap = {}
+        self.allItemDataMap = {}
+        self.ClearAll()
+    def delSelectedRows(self):
+        rowId = self.GetFirstSelected()
+        while not -1 == rowId:
+            self.delRow(rowId)            
+            rowId = self.GetFirstSelected()
+        
+    def getText(self, rowId, colId):
+        return self.GetItem(rowId, colId).GetText()
+    def getFirstSelectedText(self, colId):
+        return self.getText(self.GetFirstSelected(), colId)
+    def selectAll(self):
+        for i in range(self.GetItemCount()):
+            self.Select(i)
+    def getSelectedRowId(self):
+        ret = []
+        rowId = self.GetFirstSelected()
+        while not -1 == rowId:
+            ret.append(rowId)            
+            rowId = self.GetNextSelected(rowId)
+            
+        return ret
+        
         
 class MainWin(wx.App):
     def __init__(self):
@@ -139,6 +331,8 @@ class MainWin(wx.App):
         newTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_ADD_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag NEW')
         delTag_bmp = (wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_TOOLBAR, tsize), 'tag DEL')
         batSet_bmp = (wx.ArtProvider.GetBitmap(wx.ART_HELP_SETTINGS, wx.ART_TOOLBAR, tsize), 'multi set')
+        
+        user1_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), '?')
         #see ico from http://blog.csdn.net/rehung/article/details/1859030
         #id same with Fx key
         self._initToolbarOneBtn(20, sync_bmp)
@@ -154,6 +348,8 @@ class MainWin(wx.App):
         self._initToolbarOneBtn(100, autoTag_bmp)
         self._initToolbarOneBtn(110, newTag_bmp)
         self._initToolbarOneBtn(120, delTag_bmp)
+        self.tb.AddSeparator()
+        self._initToolbarOneBtn(910, user1_bmp)
         self.tb.AddSeparator()
         self.tb.AddSeparator()
         
@@ -205,169 +401,6 @@ class MainWin(wx.App):
     def getViewPort(self):
         return self.frame
         
-class HtmlView(html.HtmlWindow):
-    def __init__(self, parent, evtHandler):
-        html.HtmlWindow.__init__(self, parent, -1, style=wx.NO_FULL_REPAINT_ON_RESIZE)
-        self.evtHandler = evtHandler
-    def OnCellClicked(self, cell, x, y, evt):
-        if isinstance(cell, html.HtmlWordCell):
-            sel = html.HtmlSelection()
-            self.evtHandler(cell.ConvertToText(sel))
-        #super(HtmlView, self).OnCellClicked(cell, x, y, evt)
-    def refreshData(self, htmlStr):
-        self.SetPage(htmlStr)
-        ui_utils.addFullExpandChildComponent(self.Parent, self)
-        
-class SplitView(object):
-    def __init__(self, parent, p1Color='Pink', p2Color='Aquamarine', p3Color='Light Blue', lWidth=200, tHeight=300, minSize=80):
-        self.firstPanel = wx.SplitterWindow(parent, -1, style = wx.SP_LIVE_UPDATE)
-        self.secondPanel = wx.SplitterWindow(self.firstPanel, -1, style = wx.SP_LIVE_UPDATE)
-        
-        sty = wx.NO_FULL_REPAINT_ON_RESIZE
-        p1 = wx.Panel(self.secondPanel, -1, style=sty)
-        p2 = wx.Panel(self.secondPanel, -1, style=sty)
-        p3 = wx.Panel(self.firstPanel, -1, style=sty)
-        p1.SetBackgroundColour(p1Color)
-        p2.SetBackgroundColour(p2Color)        
-        p3.SetBackgroundColour(p3Color)
-        
-        self.firstPanel.SplitVertically(self.secondPanel, p3, lWidth)
-        self.secondPanel.SplitHorizontally(p1, p2, tHeight)
-        self.firstPanel.SetMinimumPaneSize(minSize)
-        self.secondPanel.SetMinimumPaneSize(minSize)
-
-        self.mainView = self.firstPanel
-        self.p1, self.p2, self.p3 = p1, p2, p3
-        
-class ListView(wx.ListCtrl,
-           listmix.ListCtrlAutoWidthMixin,
-           listmix.TextEditMixin,
-           listmix.ColumnSorterMixin):#for sort
-    def __init__(self, parent, columns):
-        wx.ListCtrl.__init__(self, parent, -1, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT
-                                 | wx.BORDER_NONE
-                                 | wx.LC_SORT_ASCENDING)
-        listmix.ListCtrlAutoWidthMixin.__init__(self)
-        listmix.TextEditMixin.__init__(self)
-        listmix.ColumnSorterMixin.__init__(self, 100)
-                    
-        #for sort
-        self.il = wx.ImageList(16, 16)
-        self.sm_up = self.il.Add(ui_utils.get_UpArrow().GetBitmap())
-        self.sm_dn = self.il.Add(ui_utils.get_DnArrow().GetBitmap())
-        self.SetImageList(self.il, wx.IMAGE_LIST_SMALL)
-        
-        self.columns = columns
-        self._initColumns()
-        
-        #wx.ListCtrl.EnableAlternateRowColours(self, True)
-        #print dir(super(wx.ListCtrl, self))#.EnableAlternateRowColours(True)
-        
-    # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
-    def GetListCtrl(self):
-        return self
-    # Used by the ColumnSorterMixin, see wx/lib/mixins/listctrl.py
-    def GetSortImages(self):
-        return (self.sm_dn, self.sm_up)
-        
-    def onRevSort(self, colIdx):
-        _defaultSorter = self.GetColumnSorter
-        self.GetColumnSorter = self.GetColumnSorterRev
-        self.SortListItems(colIdx, int(not self._colSortFlag[colIdx]))
-        self.GetColumnSorter = _defaultSorter
-    def __revpath(self, p):
-        fs = p.split(os.path.sep)
-        fs.reverse()
-        return os.path.sep.join(fs)
-    def GetColumnSorterRev(self):
-        return self.__ColumnSorterRev
-    def __ColumnSorterRev(self, key1, key2):#copy from ColumnSorterMixin.__ColumnSorter
-        col = self._col
-        ascending = self._colSortFlag[col]
-        item1 = self.itemDataMap[key1][col]
-        item2 = self.itemDataMap[key2][col]
-        #rev begin
-        item1 = self.__revpath(item1)
-        item2 = self.__revpath(item2)
-        #rev end
-
-        #--- Internationalization of string sorting with locale module
-        if type(item1) == unicode and type(item2) == unicode:
-            cmpVal = locale.strcoll(item1, item2)
-        elif type(item1) == str or type(item2) == str:
-            cmpVal = locale.strcoll(str(item1), str(item2))
-        else:
-            cmpVal = cmp(item1, item2)
-        #---
-
-        # If the items are equal then pick something else to make the sort value unique
-        if cmpVal == 0:
-            cmpVal = apply(cmp, self.GetSecondarySortValues(col, key1, key2))
-
-        if ascending:
-            return cmpVal
-        else:
-            return -cmpVal
-            
-    def _initColumns(self):
-        i = 0
-        for col in self.columns:
-            self.InsertColumn(i, col[0], col[2])#name, align
-            self.SetColumnWidth(i, col[1])#width
-            i += 1
-    
-    def refreshData(self, listItemDict):
-        '''
-        #for select statue after refresh
-        selIdxes = []
-        for i in range(self.GetItemCount()):
-            if self.IsSelected(i):
-                selIdxes.append(self.GetItemData(i))
-        '''
-        self.itemDataMap = listItemDict
-        
-        '''
-        self.DeleteAllItems()
-        for key, data in listItemDict.items():
-            index = self.InsertStringItem(sys.maxint, data[0])
-            for i in range(1, len(data)):
-                self.SetStringItem(index, i, data[i])
-            self.SetItemData(index, key)
-        '''
-        rowIdx = self.GetItemCount() - 1
-        while rowIdx >= 0:
-            rowData = self.GetItemData(rowIdx)
-            if not rowData in listItemDict.keys():
-                self.DeleteItem(rowIdx)
-            else:
-                for colIdx in range(0, len(listItemDict[rowData])):
-                    if not listItemDict[rowData][colIdx] == self.GetItem(rowIdx, colIdx).GetText():
-                        self.SetStringItem(rowIdx, colIdx, listItemDict[rowData][colIdx])
-                        
-            rowIdx -= 1
-            
-        for id in listItemDict.keys():
-            found = False
-            for rowIdx in range(0, self.GetItemCount()):
-                if self.GetItemData(rowIdx) == id:
-                    found = True
-                    break
-            if not found:
-                index = self.InsertStringItem(sys.maxint, listItemDict[id][0])
-                for i in range(1, len(listItemDict[id])):
-                    self.SetStringItem(index, i, listItemDict[id][i])
-                self.SetItemData(index, id)
-            '''
-            #for select statue after refresh
-            if key in selIdxes:
-                self.Select(index)
-            '''
-            
-        ui_utils.addFullExpandChildComponent(self.Parent, self)
-    
-    def readonlyCell(self, event):#disable edit: path, tags
-        event.Veto()#Readonly
-
 class TestSearchCtrl(wx.SearchCtrl):
     maxSearches = 20
     
@@ -410,9 +443,7 @@ class TestSearchCtrl(wx.SearchCtrl):
                 continue
             menu.Append(1+idx, txt)
         return menu        
-#========                   
-                   
-#--------BEGIN Model_Serializable
+
 backuped = False
 class io(object):
     @staticmethod
@@ -448,8 +479,16 @@ class io(object):
                 raise e
         file.close()
         ui_utils.log('save %s, %d lines' % (fname, len(lst)))
-               
-#--------BEGIN Model
+
+class FileDropTarget(wx.FileDropTarget):
+    def __init__(self, window):
+        wx.FileDropTarget.__init__(self)  
+        window.SetDropTarget(self)
+    def registerPathAdd(self, evt):
+        self.dropFile = evt
+    def OnDropFiles(self, x, y, filenames):
+        self.dropFile(x, y, filenames)            
+        
 class Model(object):
     def __init__(self):
         #use remote file to save item data
@@ -470,7 +509,6 @@ class Model(object):
         
         self.itemdata = {}#{1:(col1,col2,col3,),}
         #all Items to be saved
-        self.displayItemData = {}#displayed in Item List View
         self.itemcolumns = []#[[col1,width,align,ro,],]
         self.itemColumnStr = None
         
@@ -486,7 +524,6 @@ class Model(object):
         
         #self.tagSizeTemplate = '<font size=%s>%s</font>'
         #self.tagColorTemplate = '<font color=%s>%s</font>'
-
         #self.tagColorDefine = {'sys-%s':'gray', }
         #self.tagSizeDefine = {(100,sys.maxint):'+5', (50,99):'+4', (1,10):'-2', (11,49):'+0'}
         
@@ -497,8 +534,7 @@ class Model(object):
         self._initBlacklist()
         self._initFilters()
         
-        self.refreshObj = {}
-
+        #self._buildTagsHtmlStr()
     def _initPath(self):
         idx = 0
         for line in io.load(PATH_CONFIG_F_NAME):
@@ -523,8 +559,8 @@ class Model(object):
         self.tagFooterStr = ss[2]
         
         #content inited by items
-        self._buildTagsHtmlStr()
-    def _buildTagsHtmlStr(self):
+        #self._buildTagsHtmlStr()
+    def buildTagsHtmlStr(self):
         _tags = []
         for aTag, aCount in sorted(self.tagdata.items()):#tag sort
             _tagHtmlStr = self.tagTemplate%('%s:%d'%(aTag, aCount))
@@ -556,7 +592,6 @@ class Model(object):
                     self._incTag(aTag)
             idx += 1
             
-        self.displayItemData = self.itemdata       
     def _initOneItemRow(self, idx, values):
         self.itemdata[idx] = values
         for i in range(len(values), len(self.itemcolumns)):
@@ -576,19 +611,8 @@ class Model(object):
             column.append(attrs[3])#ro
             columns.append(column)
         self.itemcolumns = columns
-                
-    def saveItem(self, comfirm=False):
-        io.save(self._tostrsItem(), ITEM_CONFIG_F_NAME, comfirm)
-    def savePath(self, comfirm=False):
-        io.save(self._tostrsPath(), PATH_CONFIG_F_NAME, comfirm)
-    def _tostrsItem(self):
-        ret = [self.itemColumnStr]
-        for i in self.itemdata.values():
-            ret.append(','.join(i))
-        return ret
-    def _tostrsPath(self):
-        return [p[0] for p in self.pathdata.values()]
-                
+        
+        
     def _incTag(self, aTag):
         if '' == aTag:
             #ui_utils.warn('empty tag inc')
@@ -613,525 +637,392 @@ class Model(object):
             return 1
         else:
             return max(dict.keys()) + 1
-    def _hasTag(self, rowKey, aTag):
-        itemInAll = self.itemdata[rowKey]
-        itemTagStr = itemInAll[TAG_COL_IDX]
-        itemTags = itemTagStr.split(';')
-        return aTag in itemTags
-                
-    def buildLogStr(self):
-        return self.filterLogTemplate % (len(self.displayItemData), self.filterTag, ' and '.join(self.filterStrs))
         
-    def clearAll(self):
-        self.tagdata = {}
-        self.itemdata = {}
-        self.displayItemData = {}
-        self.pathdata = {}
+    def saveItem(self, comfirm=False):
+        _tostrsItem = [self.itemColumnStr]
+        for i in self.itemdata.values():
+            _tostrsItem.append(','.join(i))
+        io.save(_tostrsItem, ITEM_CONFIG_F_NAME, comfirm)
         
-    def refreshAll(self):
-        self._buildTagsHtmlStr()
-        self.refreshObj[TAG_CONFIG_F_NAME].refreshData(self.tagHtmlStr)
-        self.refreshObj[PATH_CONFIG_F_NAME].refreshData(self.pathdata)
-        self.refreshObj[ITEM_CONFIG_F_NAME].refreshData(self.displayItemData)
-    
-    def filterItemByTag(self, tag):
-        if ALL_TAG == tag:
-            self.displayItemData = self.itemdata
-        else:
-            self.displayItemData = {}
-            for key in self.itemdata.keys():
-                if self._hasTag(key, tag):
-                    self.displayItemData[key] = self.itemdata[key]
-    def filterItemByFormular(self, text):
-        ui_utils.log('filter by formular: %s'%text)
-        
-        if '' == text.strip():
-            self.displayItemData = self.itemdata
-        else:
-            dispitem = {}
-            for id, row in self.displayItemData.items():
-                if eval(text):
-                    dispitem[id] = self.displayItemData[id]
-                        
-            self.displayItemData = dispitem
-        
-    def dowithOneTag4OneItem(self, rowKey, newTag, isAdd):#used by tagSet and pathSync
-        if ALL_TAG == newTag:#ALL can't be set as a tag
-            ui_utils.warn('ALL can\' be set as a tag')
-            return
-            
-        itemInAll = self.itemdata[rowKey]
-        #itemInDisplay = self.displayItemData[rowKey]
-        itemTagStr = itemInAll[TAG_COL_IDX]
-        itemTags = itemTagStr.split(';')
-        if isAdd:
-            if not newTag in itemTags:
-                #delete all tags when set DEL
-                if SYS_TAG_DEL == newTag:
-                    for otherTag in itemTags:
-                        self._decTag(otherTag)
-                    itemInAll[TAG_COL_IDX] = ''
-                    
-                if len(itemInAll[TAG_COL_IDX]) > 0:
-                    itemTags.append(newTag)
-                    itemInAll[TAG_COL_IDX] = ';'.join(sorted(itemTags))
-                else:
-                    itemInAll[TAG_COL_IDX] = newTag
-                #itemInDisplay[TAG_COL_IDX] = itemInAll[TAG_COL_IDX]
-                self._incTag(newTag)
-        else:
-            if newTag in itemTags:
-                itemTags.remove(newTag)
-                if len(itemTags) > 0:
-                    itemInAll[TAG_COL_IDX] = ';'.join(sorted(itemTags))
-                else:
-                    itemInAll[TAG_COL_IDX] = ''
-                self._decTag(newTag)
+    def savePath(self, comfirm=False):
+        io.save([p[0] for p in self.pathdata.values()], PATH_CONFIG_F_NAME, comfirm)
 
-    def autoTagEvt(self, filenames):#[(file,key),]
-        for file, rowKey in filenames:
-            _ext = os.path.splitext(file)[1].lower()
-            if not '' == _ext:
-                if _ext in self.ext.keys():
-                    self.dowithOneTag4OneItem(rowKey, self.ext[_ext], True)
-                    self.dowithOneTag4OneItem(rowKey, _ext, False)#rmv tag if defined before
-                else:
-                    self.dowithOneTag4OneItem(rowKey, _ext, True)
-    def delItemByEvt(self, filenames):#[(file,key),]
-        for file in filenames:
-            rowid = file[1]
-            itemTags = self.itemdata[rowid][TAG_COL_IDX].split(';')
-            for itemTag in itemTags:
-                self._decTag(itemTag)
-            self.itemdata.pop(rowid)            
-    def delPathByEvt(self, filenames):#only rmv Path, not care items
-        for file in filenames:
-            self.pathdata.pop(file[1])
-    def itemSetTagEvt(self, rows, *args):#[(file,key),], tag list, rev
-        for newTag in args[0]:
-            for aRow in rows:
-                rowKey = aRow[1]
-                if 2 == len(args) and args[1]:#Revert Tag
-                    _tagSet = self._hasTag(rowKey, newTag)
-                    if _tagSet: self.dowithOneTag4OneItem(rowKey, newTag, False)#rmv tag
-                    else: self.dowithOneTag4OneItem(rowKey, newTag, True)#add tag
-                else:#default is False
-                    if '+' == newTag[0]:
-                        self.dowithOneTag4OneItem(rowKey, newTag[1:], True)#add tag
-                    elif '-' == newTag[0]:
-                        self.dowithOneTag4OneItem(rowKey, newTag[1:], False)#rmv tag
-    def itemMultiSetEvt(self, rows, *args):#[(file,key),], cell value
-        setNewValue = args[0]#row[col] = u'xxx'
-        #print setNewValue
-        for aRow in rows:
-            row = self.itemdata[aRow[1]]
-            #self.itemdata[aRow[1]][colIdx] = newVal
-            exec(setNewValue)#use exec, not eval
-            #print 'done'
-    
+def errmsg(func):
+    def _errmsg(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+        except Exception, e:
+            _dlg = wx.MessageDialog(None, str(e), 'ERROR', wx.OK | wx.ICON_ERROR)
+            _dlg.ShowModal()
+            _dlg.Destroy()
+            raise e
+        return ret
+    return _errmsg
+
+class EventHandler(object):
+    def __init__(self, tagView, pathView, itemView, model):
+        self.tagView = tagView
+        self.pathView = pathView
+        self.itemView = itemView
+        self.model = model
+        
+    def _setTags(self, rowId, newtags, setView=True):
+        tagstr = self.itemView.getText(rowId, TAG_COL_IDX)
+        tags = [x.strip() for x in tagstr.split(';')]
+        if [''] == tags:
+            tags = []
+        
+        if '-' == newtags:
+            for aTag in tags:
+                self._setTag(tags, aTag, '-')
+            newtaglist = []
+        elif '%s%s'%('$',SYS_TAG_DEL) == newtags:
+            if SYS_TAG_DEL in tags:
+                newtaglist = copy.copy(tags)
+                self._setTag(tags, SYS_TAG_DEL, '-')
+                newtaglist.remove(SYS_TAG_DEL)
+            else:
+                for aTag in tags:
+                    self._setTag(tags, aTag, '-')
+                self._setTag(tags, SYS_TAG_DEL, '+')
+                newtaglist = [SYS_TAG_DEL]
+        else:
+            newtags = newtags.split(';')
+            newtaglist = copy.copy(tags)
+            for aTag in newtags:
+                ret = self._setTag(tags, aTag[1:], aTag[0])
+                if '+' == ret:
+                    newtaglist.append(aTag[1:])
+                elif '-' == ret:
+                    newtaglist.remove(aTag[1:])
+        
+        if setView:
+            if 0 == len(newtaglist):
+                newtagstr = ''
+            elif 1 == len(newtaglist):
+                newtagstr = newtaglist[0]
+            else:
+                newtagstr = ';'.join(sorted(newtaglist))
+            
+            self.itemView.modRow(rowId, TAG_COL_IDX, newtagstr, True)                
+    def _setTag(self, tags, aTag, action):#return + when add, - when del, '' when do nothing
+        if '+' == action:
+            if not aTag in tags:
+                self.model._incTag(aTag)
+                return '+'
+        elif '-' == action:
+            if aTag in tags:
+                self.model._decTag(aTag)
+                return '-'
+        elif '$' == action:
+            if aTag in tags:
+                return self._setTag(tags, aTag, '-')
+            else:
+                return self._setTag(tags, aTag, '+')
+                
+        return ''
+        
+    @errmsg
+    def itemEdit(self, event):
+        if not self.oldval == event.Text:
+            self.itemView.modRow(event.GetIndex(), event.GetColumn(), event.Text)
+            self.model.saveItem()
+        del self.oldval
+    @errmsg
+    def itemBatchEdit_F4(self):
+        _dlg = wx.TextEntryDialog(None, "row[?] = u'xxx'", 'Set Cells for Multi Rows')
+        if _dlg.ShowModal() == wx.ID_OK:
+            setNewValue = _dlg.GetValue()
+            
+            for i in self.itemView.getSelectedRowId():
+                self.itemView.modRowByExec(i, setNewValue)
+            self.model.saveItem()
+        _dlg.Destroy()
+    @errmsg
+    def itemSetTag_F9(self):
+        _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
+        if _dlg.ShowModal() == wx.ID_OK:
+            for rowId in self.itemView.getSelectedRowId():
+                self._setTags(rowId, _dlg.GetValue())
+        _dlg.Destroy()
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
+    def itemAutoTag_F10(self):
+        for rowId in self.itemView.getSelectedRowId():
+            filepath = self.itemView.getText(rowId, PATH_COL_IDX)
+            if os.path.isfile(filepath):
+                _ext = os.path.splitext(filepath)[1].lower()
+                if not '' == _ext:
+                    if _ext in self.model.ext.keys():
+                        self._setTags(rowId, '+%s;-%s'%(self.model.ext[_ext], _ext))
+                    else:
+                        self._setTags(rowId, '+%s'%_ext)
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
+    def itemNewTag_F11(self):
+        for rowId in self.itemView.getSelectedRowId():
+            self._setTags(rowId, '%s%s'%('$', SYS_TAG_NEW))
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
+    def itemDelTag_F12(self):
+        for rowId in self.itemView.getSelectedRowId():
+            self._setTags(rowId, '%s%s'%('$', SYS_TAG_DEL))
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
+    def itemDel(self):
+        _dlg = wx.MessageDialog(None, 'DELETE', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            for rowId in self.itemView.getSelectedRowId():
+                self._setTags(rowId, '-', False)
+            self.itemView.delSelectedRows()
+            
+            self.model.itemdata = self.itemView.allItemDataMap
+            self.model.saveItem()
+            
+            self.repaintTagView()
+        _dlg.Destroy()
+    @errmsg
+    def pathDel(self):
+        _dlg = wx.MessageDialog(None, 'DELETE', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            self.pathView.delSelectedRows()
+            
+            self.model.pathdata = self.pathView.allItemDataMap
+            self.model.savePath()
+            
+            #self.repaintTagView()
+        _dlg.Destroy()
+    @errmsg
+    def itemSelectAll_F5(self):#stop here
+        self.itemView.selectAll()
+    @errmsg
+    def itemSortRev_F6(self):#stop here
+        self.itemView.onRevSort(PATH_COL_IDX)
+    @errmsg
+    def itemOpenDir_F7(self):#stop here
+        os.startfile(os.path.dirname(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX)))
+    @errmsg
+    def itemOpen_F8(self):#stop here
+        os.startfile(self.itemView.getText(self.itemView.GetFirstSelected(), PATH_COL_IDX))
+    @errmsg
+    def pathSync_F2(self):
+        pathlist = [p[0] for p in self.model.pathdata.values()]#all pathes
+        self.itemView.showAll()
+        rowId = 0
+        while rowId < self.itemView.GetItemCount():
+            if not SYS_TAG_RMV in self.itemView.getText(rowId, TAG_COL_IDX).split(';'):
+                _inPath = False
+                for p in pathlist:#do with items not under path
+                    if p in self.itemView.getText(rowId, PATH_COL_IDX):
+                        _inPath = True
+                        break
+                        
+                if not _inPath or not os.path.exists(self.itemView.getText(rowId, PATH_COL_IDX)):
+                    self._setTags(rowId, '+%s'%SYS_TAG_RMV)#soft delete item
+            rowId += 1
+                    
+        for p in pathlist:
+            for f in ui_utils.getSubFiles(p):
+                self._addItem(f[0], f[1])
+                
+        self.model.itemdata = self.itemView.allItemDataMap
+        self.model.saveItem()
+        self.repaintTagView()
+    @errmsg
+    def pathClear_F3(self):
+        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
+        if wx.ID_YES == _dlg.ShowModal():
+            self.itemView.clear()
+            self.pathView.clear()
+            self.model.tagdata = {}
+            self.model.itemdata = {}
+            self.model.pathdata = {}
+            #self.tagView.SetPage('')
+            self.repaintTagView()
+        _dlg.Destroy()
+        
     def _addPathOnly(self, newpath):#called by addPath. not care items
         if not os.path.sep == newpath[-1]:
             newpath = '%s%s'%(newpath, os.path.sep)#fix bug when a path aaa and another path aaa-bbb, rmv aaa-bbb, it's children will not be rmv
             
-        found = False
-        for p in self.pathdata.values():
+        for p in self.model.pathdata.values():
             #if newpath.startswith(p[0]):#fix bug: if upper path added, child path can't be added anymore
             if newpath == p[0]:#do not change. because there is difference under NO recursion mode
-                found = True
-                break
+                return False
                 
-        if found:
-            #ui_utils.warn('%s already exists'%newpath)
-            return False
-        else:
-            newid = self._newid(self.pathdata)
-            self.pathdata[newid] = (newpath, )
-            #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
-            return True
+        self.pathView.addRow([newpath])
+        #ui_utils.log('model add %s, pathdata count is %d'%(newpath,len(self.pathdata.keys())))
+        return True
     def _addItem(self, filepath, filename):#called by addPath or syncPath, NO LOG when already exists
-        for i_blackrule in self.blacklist:
+        for i_blackrule in self.model.blacklist:
             if eval(i_blackrule):
                 ui_utils.warn('%s matches %s'%(filepath, i_blackrule))
-                return
+                return False
                 
-        found = False
-        for f in self.itemdata.values():
+        for f in self.model.itemdata.values():
             if filepath == f[1]:
-                found = True
-                break
+                return False
                 
-        if not found:
-            newid = self._newid(self.itemdata)
-                
-            if os.path.isfile(filepath):
-                filename = os.path.splitext(filename)[0]#only file name, without ext
-            #self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
-            self._initOneItemRow(newid, [filename,filepath,ui_utils.today(),SYS_TAG_NEW])#fix bug: add item with less field
-            self.displayItemData[newid] = self.itemdata[newid]
-            
-            self._incTag(SYS_TAG_NEW)
-            return True
-            #ui_utils.log('Item %s added'%filepath)
-        else:
-            return False
-            
-    def addPathByEvt(self, filenames):#[file,]
-        added = False
+        if os.path.isfile(filepath):
+            filename = os.path.splitext(filename)[0]#only file name, without ext
+        #self.itemdata[newid] = [filename,filepath,ui_utils.today(),SYS_TAG_NEW,'']
+        self.itemView.addRow([filename,filepath,ui_utils.today(),SYS_TAG_NEW])#fix bug: add item with less field
+        
+        self.model._incTag(SYS_TAG_NEW)
+        return True
+        #ui_utils.log('Item %s added'%filepath)
+        
+    @errmsg
+    def pathAdd_Drop(self, x, y, filenames):
         for file in filenames:
-            if os.path.isdir(file):#path exists in Disk
+            if os.path.isdir(file):
                 thispathadded = self._addPathOnly(file)#path added
                 if thispathadded:
-                    added = True
                     for f in ui_utils.getSubFiles(file):
-                        try:
-                            self._addItem(f[0], f[1])#path, filename
-                        except Exception,e:#UnicodeDecodeError
-                            ui_utils.error(os.path.join(f[0], f[1]))
-                            raise e
-            
-        return added
-
-    def syncPath(self):#soft remove item if it's parent path is not exists or file not exists on Disk
-        modified = False
-        pathlist = [p[0] for p in self.pathdata.values()]#all pathes
-        for k, i in self.itemdata.items():
-            if not SYS_TAG_RMV in i[TAG_COL_IDX].split(';'):
-                _inPath = False
-                for p in pathlist:#do with items not under path
-                    if p in i[PATH_COL_IDX]:
-                        _inPath = True
-                        break
-                        
-                if not _inPath:
-                    self.dowithOneTag4OneItem(k, SYS_TAG_RMV, True)#soft delete item
-                    modified = True
-                elif not os.path.exists(i[PATH_COL_IDX]):#do with file not exists
-                    self.dowithOneTag4OneItem(k, SYS_TAG_RMV, True)#soft delete item
-                    modified = True
-                    
-        for p in pathlist:
-            for f in ui_utils.getSubFiles(p):
-                if self._addItem(f[0], f[1]):
-                    modified = True
-                
-        return modified            
-            
-#--------BEGIN Controllor
-class EventHandler(object):
-    def __init__(self, model, winlog, modelKeyColIdx=0):
-        self.model = model
-        self.winlog = winlog
-        self.modelKeyColIdx = modelKeyColIdx
+                        self._addItem(f[0], f[1])#path, filename #UnicodeDecodeError
         
-    def tagFilter(self, tagStr):#select tag
-        try:
-            tag = tagStr[1:-1]
-            tag = tag.split(':')[0]
-            self.model.filterItemByTag(tag)
-            
-            self.model.refreshAll()
-            #self.winlog('filter item by tag done')
-            self.model.filterTag = tag
-            self.model.filterStrs = []
-            self.winlog(self.model.buildLogStr())
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def formularFilter(self, text):
-        try:
-            self.model.filterItemByFormular(text)
-            
-            self.model.refreshAll()
-            #self.winlog('filter item by formular done')
-            
-            self.model.filterStrs.append(text)
-            self.winlog(self.model.buildLogStr())
-        except Exception,e:
-            self.winlog(str(e), True)
-            raise e
-    def selAllImpl(self):
-        for i in range(self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemCount()):
-            self.model.refreshObj[ITEM_CONFIG_F_NAME].Select(i)
-    def revSortImpl(self):
-        self.model.refreshObj[ITEM_CONFIG_F_NAME].onRevSort(PATH_COL_IDX)
-            
-    def itemOpen(self):
-        try:
-            os.startfile(\
-                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
-                self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][PATH_COL_IDX])
-            #self.winlog('open item done')
-        except Exception,e:
-            self.winlog(str(e), True)
-            raise e
-    def itemOpenDir(self):
-        try:
-            os.startfile(\
-                os.path.dirname(\
-                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
-                self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][PATH_COL_IDX]))
-            #self.winlog('open item dir done')
-        except Exception,e:
-            self.winlog(str(e), True)
-            raise e
-    def clrImpl(self):#do not save
-        _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
-        if wx.ID_YES == _dlg.ShowModal():
-            self.model.clearAll()
-            self.model.refreshAll()
-        _dlg.Destroy()
-    
-    def pathDel(self):
-        try:
-            self._dealRows(self.model.refreshObj[PATH_CONFIG_F_NAME], self.model.delPathByEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def itemDel(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.delItemByEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def autoTag(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.autoTagEvt)
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def itemSetTag(self):
-        try:
-            _dlg = wx.TextEntryDialog(None, "'+' means add, '-' means del, split tags by ';'", 'Set Tag(s)')
-            if _dlg.ShowModal() == wx.ID_OK:
-                newTags = [x.strip() for x in _dlg.GetValue().split(';')]
-                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, newTags)
-            _dlg.Destroy()
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def _dealRows(self, list, dealImpl, *args):
-        fileAttr = []
-        selectedRow = list.GetFirstSelected()
-        while not -1 == selectedRow:
-            selKey = list.GetItem(selectedRow, self.modelKeyColIdx).GetText()
-            selIdx = list.GetItemData(selectedRow)
-            fileAttr.append((selKey, selIdx))#Key(Path), ItemData not row Index
-            selectedRow = list.GetNextSelected(selectedRow)
-            
-        dealImpl(fileAttr, *args)
-        
-        self.model.refreshAll()
+        self.model.pathdata = self.pathView.allItemDataMap
+        self.model.itemdata = self.itemView.allItemDataMap
         self.model.savePath()
         self.model.saveItem()
-    def setNewTag(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_NEW,), True)
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_DEL,))
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def setDelTag(self):
-        try:
-            self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, (SYS_TAG_DEL,), True)
-            #self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemSetTagEvt, ('-%s'%SYS_TAG_NEW,))
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-    def batSetImpl(self):
-        try:
-            _dlg = wx.TextEntryDialog(None, "row[?] = u'xxx'", 'Set Cells for Multi Rows')
-            if _dlg.ShowModal() == wx.ID_OK:
-                setNewValue = _dlg.GetValue()
-                self._dealRows(self.model.refreshObj[ITEM_CONFIG_F_NAME], self.model.itemMultiSetEvt, setNewValue)
-            _dlg.Destroy()
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
+        self.repaintTagView()
+                
+    @errmsg
+    def itemFilterByInput(self, text):
+        if '' == text.strip():
+            self.itemView.showAll()
+        else:
+            rowId = 0
+            while rowId < self.itemView.GetItemCount():
+                row = self.itemView.itemDataMap[self.itemView.GetItemData(rowId)]
+                if not eval(text):
+                    self.itemView.hideRow(rowId)
+                else:
+                    rowId += 1
+    @errmsg
+    def itemFilterByTag(self, tagStr):#too slow
+        tag = tagStr[1:-1]
+        tag = tag.split(':')[0]
+        if ALL_TAG == tag:
+            self.itemView.showAll()
+        else:
+            rowId = 0
+            while rowId < self.itemView.GetItemCount():
+                tags = self.itemView.getText(rowId, TAG_COL_IDX)
+                if tag in tags:
+                    rowId += 1
+                else:
+                    self.itemView.hideRow(rowId)
+                
+            for aKey, aItem in self.itemView.allItemDataMap.items():
+                itemTagStr = aItem[TAG_COL_IDX]
+                itemTags = itemTagStr.split(';')
+                if tag in itemTags:
+                    if not aKey in self.itemView.itemDataMap.keys():
+                        self.itemView.showRow(aKey)
+
+    def keyEvt(self, event):
+        sender = event.GetEventObject()
+        key = event.GetKeyCode()
+        if self.pathView == sender:
+            if wx.WXK_DELETE == key:
+                self.pathDel()
+            elif wx.WXK_F2 == event.GetKeyCode():
+                self.pathSync_F2()
+            elif wx.WXK_F3 == event.GetKeyCode():#clear all
+                self.pathClear_F3()
+        elif self.itemView == sender:
+            if wx.WXK_DELETE == key:
+                self.itemDel()
+            elif wx.WXK_F7 == key:
+                self.itemOpenDir_F7()
+            elif wx.WXK_F8 == key:
+                self.itemOpen_F8()
+            elif wx.WXK_F5 == key:
+                self.itemSelectAll_F5()
+            elif wx.WXK_F6 == key:
+                self.itemSortRev_F6()
+            elif wx.WXK_F9 == event.GetKeyCode():
+                self.itemSetTag_F9()
+            elif wx.WXK_F11 == event.GetKeyCode():
+                self.itemNewTag_F11()
+            elif wx.WXK_F12 == event.GetKeyCode():
+                self.itemDelTag_F12()
+            elif wx.WXK_F10 == event.GetKeyCode():
+                self.itemAutoTag_F10()
+            elif wx.WXK_F4 == event.GetKeyCode():#multi set cell
+                self.itemBatchEdit_F4()
+    
+    def repaintTagView(self):
+        self.model.buildTagsHtmlStr()
+        self.tagView.SetPage(self.model.tagHtmlStr)
+        ui_utils.addFullExpandChildComponent(self.tagView)
         
-    def pathAdd(self, x, y, filenames):#add path
-        try:
-            added = self.model.addPathByEvt(filenames)
-            if added:
-                self.model.refreshAll()
-                self.model.saveItem()
-                self.model.savePath()
-                #self.winlog('add path done')
-        except Exception, e:
-            self.winlog(str(e), True)
-            for f in filenames:
-                ui_utils.error(f)
-            raise e
-            
-    def pathSync(self):
-        try:
-            modified = self.model.syncPath()
-            
-            if modified:
-                self.model.refreshAll()
-                self.model.saveItem()
-                #self.winlog('refresh path done')
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
-        
-    def itemSet(self, event):#edit
-        try:
-            if not self.oldval == event.Text:
-                #event.Allow()
-                self.model.itemdata[self.model.refreshObj[ITEM_CONFIG_F_NAME].GetItemData(\
-                    self.model.refreshObj[ITEM_CONFIG_F_NAME].GetFirstSelected())][event.Column] = event.Text.replace(',',';')#refresh automatically
-                    #fix csv bug when input ,
-                self.model.saveItem()
-                #self.winlog('edit cell done')
-            del self.oldval
-        except Exception, e:
-            self.winlog(str(e), True)
-            raise e
     def _listBeginEdit(self, event):#disable edit: path, tags
-        try:
-            if READONLY == self.model.refreshObj[ITEM_CONFIG_F_NAME].columns[event.Column][3]:
-                event.Veto()#Readonly
-            else:
-                self.oldval = event.Text
-                #ui_utils.log('edit item')
-        except Exception, e:
-            winlog(str(e), True)
+        if READONLY == self.itemView.columns[event.Column][3]:
+            event.Veto()#Readonly
+        else:
+            self.oldval = event.Text
+            #ui_utils.log('edit item')
+    def _readonlyCell(self, event):
+        event.Veto()
         
-    def pathListKeyDown(self, event):
-        if wx.WXK_DELETE == event.GetKeyCode():
-            self.pathDel()
-        elif wx.WXK_F2 == event.GetKeyCode():
-            self.pathSync()
-        elif wx.WXK_F3 == event.GetKeyCode():#clear all
-            self.clrImpl()
-    def itemListKeyDown(self, event):
-        if wx.WXK_DELETE == event.GetKeyCode():
-            self.itemDel()
-        elif wx.WXK_F9 == event.GetKeyCode():
-            self.itemSetTag()
-        elif wx.WXK_F8 == event.GetKeyCode():
-            self.itemOpen()
-        elif wx.WXK_F7 == event.GetKeyCode():
-            self.itemOpenDir()
-        elif wx.WXK_F5 == event.GetKeyCode():#select all
-            self.selAllImpl()
-        elif wx.WXK_F6 == event.GetKeyCode():#user define sorter
-            #self.winlog('sort by path rev done')
-            self.revSortImpl()
-        elif wx.WXK_F4 == event.GetKeyCode():#multi set cell
-            self.batSetImpl()
-        elif wx.WXK_F11 == event.GetKeyCode():
-            self.setNewTag()
-        elif wx.WXK_F12 == event.GetKeyCode():
-            self.setDelTag()
-        elif wx.WXK_F10 == event.GetKeyCode():
-            self.autoTag()
+    def evt_1(self):
+        for k in sorted(self.model.tagdata.keys()):
+            print '%s,%d'%(k,self.model.tagdata[k])
         
-class FileDropTarget(wx.FileDropTarget):
-    def __init__(self, window, model, winlog):
-        wx.FileDropTarget.__init__(self)  
-        window.SetDropTarget(self)
-        self.dropFile = EventHandler(model, winlog).pathAdd
-    def OnDropFiles(self, x, y, filenames):
-        self.dropFile(x, y, filenames)            
-#--------BEGIN UI
 def makeMainWin():
     mainWin = MainWin()
+    
     model = Model()
     mainWin.setToolbarDefaultFilter(model.defaultFilters)
-    mainWin.registerSearcher(EventHandler(model, mainWin.log).formularFilter)
-    
-    view1 = SplitView(mainWin.getViewPort())
-    
-    view2 = HtmlView(view1.p1, EventHandler(model, mainWin.log).tagFilter)
-    model.refreshObj[TAG_CONFIG_F_NAME] = view2#view2.refreshData(model.tagHtmlStr)
-    
-    view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))
-    evtHandler = EventHandler(model, mainWin.log)
-    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, view3.readonlyCell)#must set for readonly
-    #view3.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.listEndEdit)
-    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.pathListKeyDown)
-    FileDropTarget(view3, model, mainWin.log)
-    model.refreshObj[PATH_CONFIG_F_NAME] = view3#view3.refreshData(model.getPathes())
-    mainWin.BindToolbarEvent(20, evtHandler.pathSync)
-    mainWin.BindToolbarEvent(30, evtHandler.clrImpl)
-    mainWin.BindToolbarEvent(40, evtHandler.batSetImpl)
-    
-    view4 = ListView(view1.p3, model.itemcolumns)
-    evtHandler = EventHandler(model, mainWin.log, PATH_COL_IDX)#define key column
-    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._listBeginEdit)
-    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemSet)
-    view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.itemListKeyDown)
-    model.refreshObj[ITEM_CONFIG_F_NAME] = view4#view4.refreshData(model.displayItemData)
-    mainWin.BindToolbarEvent(50, evtHandler.selAllImpl)
-    mainWin.BindToolbarEvent(60, evtHandler.revSortImpl)
-    mainWin.BindToolbarEvent(70, evtHandler.itemOpenDir)
-    mainWin.BindToolbarEvent(80, evtHandler.itemOpen)
-    mainWin.BindToolbarEvent(90, evtHandler.itemSetTag)
-    mainWin.BindToolbarEvent(100, evtHandler.autoTag)
-    mainWin.BindToolbarEvent(110, evtHandler.setNewTag)
-    mainWin.BindToolbarEvent(120, evtHandler.setDelTag)
-    #view4.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, evtHandler.itemOpen)#change to F8
-            
-    model.refreshAll()
-    mainWin.log('show me done')
-
-    mainWin.MainLoop()
-    
-
-
-
-
-
-
-
-
-
-
-
-
-          
-#--------BEGIN Test        
-class test_ui(unittest.TestCase):
-    def test_log(self):
-        ui_utils.log('test log')
-        ui_utils.log('test log again')
-    def test_upanddn_ico(self):
-        ui_utils.get_DnArrow()
-        ui_utils.get_UpArrow()
-    def test_sizer(self):
-        app = wx.PySimpleApp()
-        parent = wx.Frame(None, -1)
-        child = wx.Panel(parent)
-        ui_utils.addFullExpandChildComponent(parent, child)
-class test_io(unittest.TestCase):
-    def test_load_pathes(self):
-        lines = io.load(PATH_CONFIG_F_NAME)
-        self.assertTrue(len(lines)>1)
-    def test_load_tags(self):
-        lines = io.load(TAG_CONFIG_F_NAME)
-        self.assertTrue(len(lines)>1)
-class test_model(unittest.TestCase):
-    def setUp(self):
-        self.model = Model()
-        self.pathes = self.model.getPathes()
-    def test_load_pathes(self):
-        self.assertTrue(len(self.pathes.keys())>1)
-    def test_add_path(self):
-        pathesCount = len(self.model.getPathes())
-        self.model.addPath('jadfadsfmlk')
-        self.assertTrue(len(self.model.getPathes()) == pathesCount + 1)
-        self.model.addPath('jadfadsfmlk')
-        self.assertTrue(len(self.model.getPathes()) == pathesCount + 1)
-    def test_rmv_path(self):
-        self.model.addPath('jadfadsfmlk')
-        pathesCount = len(self.model.getPathes())
-        self.model.rmvPath('jadfadsfmlk')
-        self.assertTrue(len(self.model.getPathes()) == pathesCount - 1)
-        self.model.rmvPath('jadfadsfmlk')
-        self.assertTrue(len(self.model.getPathes()) == pathesCount - 1)
         
-#unittest.TestProgram().runTests()
+    view1 = SplitView(mainWin.getViewPort())
+    view2 = HtmlView(view1.p1)
+    view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))    
+    view4 = ListView(view1.p3, model.itemcolumns)
+    
+    evtHandler = EventHandler(view2, view3, view4, model)
+    view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
+    view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
+    
+    view4.Bind(wx.EVT_LIST_END_LABEL_EDIT, evtHandler.itemEdit)
+    FileDropTarget(view3).registerPathAdd(evtHandler.pathAdd_Drop)
+    mainWin.registerSearcher(evtHandler.itemFilterByInput)
+    view2.registerTagClick(evtHandler.itemFilterByTag)
+    
+    view3.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._readonlyCell)
+    view4.Bind(wx.EVT_LIST_BEGIN_LABEL_EDIT, evtHandler._listBeginEdit)
+    
+    mainWin.BindToolbarEvent(20, evtHandler.pathSync_F2)
+    mainWin.BindToolbarEvent(30, evtHandler.pathClear_F3)
+    mainWin.BindToolbarEvent(40, evtHandler.itemBatchEdit_F4)
+    mainWin.BindToolbarEvent(50, evtHandler.itemSelectAll_F5)
+    mainWin.BindToolbarEvent(60, evtHandler.itemSortRev_F6)
+    mainWin.BindToolbarEvent(70, evtHandler.itemOpenDir_F7)
+    mainWin.BindToolbarEvent(80, evtHandler.itemOpen_F8)
+    mainWin.BindToolbarEvent(90, evtHandler.itemSetTag_F9)
+    mainWin.BindToolbarEvent(100, evtHandler.itemAutoTag_F10)
+    mainWin.BindToolbarEvent(110, evtHandler.itemNewTag_F11)
+    mainWin.BindToolbarEvent(120, evtHandler.itemDelTag_F12)
+    
+    mainWin.BindToolbarEvent(910, evtHandler.evt_1)
+    
+    for key, val in model.itemdata.items():
+        view4.addRow(val)
+    for key, val in model.pathdata.items():
+        view3.addRow(val)
+    
+    evtHandler.repaintTagView()
+    ui_utils.addFullExpandChildComponent(view3)
+    ui_utils.addFullExpandChildComponent(view4)
+    
+    mainWin.log('show me done')
+    mainWin.MainLoop()
 
 if "__main__" == __name__:
     if 2 == len(sys.argv):
@@ -1143,7 +1034,3 @@ if "__main__" == __name__:
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
         ITEM_CONFIG_LINK = '_%s%s' % (sys.argv[1], ITEM_CONFIG_LINK[1:])
     makeMainWin()
-    
-#How to pydoc
-#c:\python27\python -m pydoc tagger
-#NOTE: tagger without .py
