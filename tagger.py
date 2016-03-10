@@ -392,9 +392,9 @@ class MainWin(wx.App):
         
     def log(self, text, onErr=False):
         if not onErr:
-            self.sb.PushStatusText(text)
+            self.sb.PushStatusText(str(text))
         else:
-            _dlg = wx.MessageDialog(None, text, 'ERROR', wx.OK | wx.ICON_ERROR)
+            _dlg = wx.MessageDialog(None, str(text), 'ERROR', wx.OK | wx.ICON_ERROR)
             _dlg.ShowModal()
             _dlg.Destroy()
         
@@ -660,11 +660,12 @@ def errmsg(func):
     return _errmsg
 
 class EventHandler(object):
-    def __init__(self, tagView, pathView, itemView, model):
+    def __init__(self, tagView, pathView, itemView, model, winlog):
         self.tagView = tagView
         self.pathView = pathView
         self.itemView = itemView
         self.model = model
+        self.winlog = winlog
         
     def _setTags(self, rowId, newtags, setView=True):
         tagstr = self.itemView.getText(rowId, TAG_COL_IDX)
@@ -784,6 +785,8 @@ class EventHandler(object):
             self.model.saveItem()
             
             self.repaintTagView()
+            
+            self.winlog(len(self.itemView.itemDataMap))
         _dlg.Destroy()
     @errmsg
     def pathDel(self):
@@ -832,6 +835,8 @@ class EventHandler(object):
         self.model.itemdata = self.itemView.allItemDataMap
         self.model.saveItem()
         self.repaintTagView()
+        
+        self.winlog(len(self.itemView.itemDataMap))
     @errmsg
     def pathClear_F3(self):
         _dlg = wx.MessageDialog(None, 'ALL DATA WILL BE CLEARED. but no data saved until new data added', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
@@ -890,6 +895,8 @@ class EventHandler(object):
         self.model.savePath()
         self.model.saveItem()
         self.repaintTagView()
+        
+        self.winlog(len(self.itemView.itemDataMap))
                 
     @errmsg
     def itemFilterByInput(self, text):
@@ -903,6 +910,8 @@ class EventHandler(object):
                     self.itemView.hideRow(rowId)
                 else:
                     rowId += 1
+                    
+        self.winlog(len(self.itemView.itemDataMap))
     @errmsg
     def itemFilterByTag(self, tagStr):#too slow
         tag = tagStr[1:-1]
@@ -924,6 +933,8 @@ class EventHandler(object):
                 if tag in itemTags:
                     if not aKey in self.itemView.itemDataMap.keys():
                         self.itemView.showRow(aKey)
+                        
+        self.winlog(len(self.itemView.itemDataMap))
 
     def keyEvt(self, event):
         sender = event.GetEventObject()
@@ -986,7 +997,7 @@ def makeMainWin():
     view3 = ListView(view1.p2, (('Pathes', 200, wx.LIST_FORMAT_LEFT, 'ro'), ))    
     view4 = ListView(view1.p3, model.itemcolumns)
     
-    evtHandler = EventHandler(view2, view3, view4, model)
+    evtHandler = EventHandler(view2, view3, view4, model, mainWin.log)
     view3.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
     view4.Bind(wx.EVT_LIST_KEY_DOWN, evtHandler.keyEvt)
     
@@ -1021,7 +1032,7 @@ def makeMainWin():
     ui_utils.addFullExpandChildComponent(view3)
     ui_utils.addFullExpandChildComponent(view4)
     
-    mainWin.log('show me done')
+    mainWin.log(len(view4.itemDataMap))
     mainWin.MainLoop()
 
 if "__main__" == __name__:
