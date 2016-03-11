@@ -32,6 +32,7 @@ TAG_COLOR_AND_SIZE = {SYS_TAG_NEW:('blue', '+5', 'I'), SYS_TAG_RMV:('green', '+5
 
 #SYSTEM DEFINE
 ADD_ITEM_RECURSION = '__RECURSION.txt'
+ADD_ALL_RECURSION = '__RECURSION_ALL.txt'
 PATH_CONFIG_F_NAME = '__pathes.txt'
 ITEM_CONFIG_LINK = '__items_link.txt'#use remote file to save item data
 ITEM_CONFIG_F_NAME = '__items.txt'
@@ -284,7 +285,8 @@ class ListView(wx.ListCtrl,
     def clear(self):
         self.itemDataMap = {}
         self.allItemDataMap = {}
-        self.ClearAll()
+        #self.ClearAll()
+        self.DeleteAllItems()
     def delSelectedRows(self):
         rowId = self.GetFirstSelected()
         while not -1 == rowId:
@@ -923,6 +925,7 @@ class EventHandler(object):
         if ALL_TAG == tag:
             self.itemView.showAll()
         else:
+            '''
             rowId = 0
             while rowId < self.itemView.GetItemCount():
                 tags = self.itemView.getText(rowId, TAG_COL_IDX)
@@ -930,13 +933,17 @@ class EventHandler(object):
                     rowId += 1
                 else:
                     self.itemView.hideRow(rowId)
+            '''
+            self.itemView.itemDataMap = {}
+            self.itemView.DeleteAllItems()
+            #not clear allItemDataMap
                 
             for aKey, aItem in self.itemView.allItemDataMap.items():
                 itemTagStr = aItem[TAG_COL_IDX]
                 itemTags = itemTagStr.split(';')
                 if tag in itemTags:
-                    if not aKey in self.itemView.itemDataMap.keys():
-                        self.itemView.showRow(aKey)
+                    #if not aKey in self.itemView.itemDataMap.keys():
+                    self.itemView.showRow(aKey)
                         
         self.winlog(len(self.itemView.itemDataMap))
 
@@ -1065,4 +1072,5 @@ if "__main__" == __name__:
         FILTER_CONFIG_F_NAME = '_%s%s' % (sys.argv[1], FILTER_CONFIG_F_NAME[1:])
         ITEM_CONFIG_LINK = '_%s%s' % (sys.argv[1], ITEM_CONFIG_LINK[1:])
         ADD_ITEM_RECURSION = '_%s%s' % (sys.argv[1], ADD_ITEM_RECURSION[1:])
+        ADD_ALL_RECURSION = '_%s%s' % (sys.argv[1], ADD_ALL_RECURSION[1:])
     makeMainWin()

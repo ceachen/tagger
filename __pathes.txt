@@ -1,3 +1,1 @@
-C:\Windows\System32\
-D:\del\
-D:\filesync\
+D:\github\tagger\
