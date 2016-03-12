@@ -106,7 +106,14 @@ class ui_utils(object):
     @staticmethod
     def getSubFiles(rootpath):
         ret = []
-        if os.path.isfile(ADD_ITEM_RECURSION):
+        if os.path.isfile(ADD_ALL_RECURSION):
+            print 'RECURSION ALL'
+            for root, dirs, files in os.walk(rootpath):
+                for file in files:#do not include folder
+                    ret.append((os.path.join(root, file), file))
+                for dir in dirs:
+                    ret.append((os.path.join(root, dir), '[%s]'%dir))
+        elif os.path.isfile(ADD_ITEM_RECURSION):
             print 'RECURSION'
             for root, dirs, files in os.walk(rootpath):
                 for file in files:#do not include folder
