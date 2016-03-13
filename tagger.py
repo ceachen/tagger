@@ -345,6 +345,7 @@ class MainWin(wx.App):
         
         user1_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), 'print tags')
         user2_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), 'get size')
+        user3_bmp = (wx.ArtProvider.GetBitmap(wx.ART_TIP, wx.ART_TOOLBAR, tsize), 'print item')
         #see ico from http://blog.csdn.net/rehung/article/details/1859030
         #id same with Fx key
         self._initToolbarOneBtn(20, sync_bmp)
@@ -363,6 +364,7 @@ class MainWin(wx.App):
         self.tb.AddSeparator()
         self._initToolbarOneBtn(910, user1_bmp)
         self._initToolbarOneBtn(920, user2_bmp)
+        self._initToolbarOneBtn(930, user3_bmp)
         self.tb.AddSeparator()
         self.tb.AddSeparator()
         
@@ -1001,8 +1003,16 @@ class EventHandler(object):
         event.Veto()
         
     def evt_1(self):
+        print '========'
         for k in sorted(self.model.tagdata.keys()):
             print '%s,%d'%(k,self.model.tagdata[k])
+    def evt_3(self):
+        print '========'
+        for i in range(self.itemView.GetItemCount()):
+            print self.itemView.getText(i, 1)
+        print '========'
+        for i in range(self.itemView.GetItemCount()):
+            print self.itemView.getText(i, 0)
     def evt_2(self):
         for i in self.itemView.getSelectedRowId():
             p = self.itemView.getText(i, PATH_COL_IDX)
@@ -1056,6 +1066,7 @@ def makeMainWin():
     
     mainWin.BindToolbarEvent(910, evtHandler.evt_1)
     mainWin.BindToolbarEvent(920, evtHandler.evt_2)
+    mainWin.BindToolbarEvent(930, evtHandler.evt_3)
     
     for key, val in model.itemdata.items():
         view4.addRow(val)

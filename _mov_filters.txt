@@ -1,1 +1,5 @@
 '[NEW]' in row[3] or '[RMV]' in row[3]
+'\\movie2\\cartoon' in row[1]
+not '[INIT]' in row[3]
+not ord(row[0][0]) in range(ord('a'), ord('z')+1)
+not '[DEL]' in row[3]
