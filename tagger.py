@@ -40,6 +40,7 @@ EXT_CONFIG_F_NAME = '__ext.txt'
 BLACK_LIST_F_NAME = '__blacklist.txt'
 FILTER_CONFIG_F_NAME = '__filters.txt'
 TAG_CONFIG_F_NAME = '___tag.txt'
+READONLY_F_NAME = '__READONLY.txt'
 
 READONLY = 'ro'
 ALL_TAG ='ALL'
@@ -472,6 +473,10 @@ class io(object):
         return lines
     @staticmethod
     def save(lst, fname, comfirm=False):#not implement now
+        if os.path.isfile(READONLY_F_NAME):
+            ui_utils.log('readonly')
+            return
+            
         if comfirm:
             _dlg = wx.MessageDialog(None, 'Some Important CHANGEs made, SAVE it or not?', '!!!', wx.YES_NO | wx.ICON_EXCLAMATION)
             ret = _dlg.ShowModal()
@@ -1091,4 +1096,5 @@ if "__main__" == __name__:
         ITEM_CONFIG_LINK = '_%s%s' % (sys.argv[1], ITEM_CONFIG_LINK[1:])
         ADD_ITEM_RECURSION = '_%s%s' % (sys.argv[1], ADD_ITEM_RECURSION[1:])
         ADD_ALL_RECURSION = '_%s%s' % (sys.argv[1], ADD_ALL_RECURSION[1:])
+        READONLY_F_NAME = '_%s%s' % (sys.argv[1], READONLY_F_NAME[1:])
     makeMainWin()
